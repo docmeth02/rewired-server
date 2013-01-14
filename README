@@ -1,0 +1,60 @@
+WELCOME
+=======
+Welcome to re:wired, the reinvented wired Server.
+
+WARNING:
+This is a alpha release of the re:wired server software.
+For now it is a almost feature complete wired v1 server without much error checking and testing!
+You are encouraged to run the server in your terminal and report back any error it may encounter.
+If you want to help please focus your testing on these parts of the server:
+	Client compatibility
+	User management
+	File handling
+	News handling
+
+Please report any error to docmeth02@googlemail.com or connect to the development server at wired://re-wired.info
+
+INSTALLATION
+============
+To install the re:wired server, you need the following prerequisites:
+
+python >= 2.6
+python sqlite3 bindings (usually distributed with python)
+python M2Crypto
+python dns
+
+Install prerequisites on OS X (tested on Lion and Mountain Lion):
+
+	sudo easy_install M2Crypto dnspython
+
+Install prerequisites on debian based Linux distributions:
+
+	sudo apt-get install python python-support python-m2crypto python-dnspython
+
+To install the re:wired server follow these steps
+1. Unpack the tar file to your desired location:
+	tar -zxvf rewired-12345.tar.gz -C /opt/
+
+2. Edit the servers config file:
+	nano /opt/rewired/server.conf
+	
+	Make sure to correctly edit the values for:
+		logFile
+		fileRoot
+		both values need to specify a absolute path for now.
+
+3. Start the server in foreground mode (recommenced):
+	python /opt/rewired/server.py
+
+   You can also start the server as a system daemon:
+   	/opt/rewired/rewiredctl start
+   	
+4. Log into the server with your wired Client
+	The default logins are:
+		admin/admin for the admin users
+		guest with no password set for the guest User
+   	
+5. To stop your rewired server enter:
+	/opt/rewired/rewiredctl stop
+
+If you want to replace your orignial wired server, check out /opt/rewired/migrate

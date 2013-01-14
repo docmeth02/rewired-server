@@ -1,0 +1,130 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+import sys, os, time, logging
+import wiredfunctions, wirednews, wireduser, wireddb
+def openZankaNews(path):
+	importedGroups = []
+	newsfile = path+os.sep+"news"
+	if not os.path.exists(newsfile):
+		return 0
+	return newsParser(newsfile)
+	
+def openZankaGroups(path):
+	importedGroups = []
+	conffile = path+os.sep+"groups"
+	if not os.path.exists(conffile):
+		return 0
+	groups = fileParser(conffile)
+	if not groups: return 0 # empty groups
+	for agroup in groups:
+		values = agroup.split(":")
+		if len(values) != 25:
+			print "Invalid group "+values[0]
+			break
+		importedGroups.append(values)
+	return importedGroups
+	
+def openZankaUsers(path):
+	importedUsers = []
+	conffile = path+os.sep+"users"
+	if not os.path.exists(conffile):
+		return 0
+	users = fileParser(conffile)
+	if not users: return 0 # empty users
+	for auser in users:
+		values = auser.split(":")
+		if len(values) != 27:
+			print "Invalid user "+values[0]
+			break
+		if values[0] == "admin":
+			# we skip the admin user
+			break
+		importedUsers.append(values)
+	return importedUsers
+
+def fileParser(file):
+	items = []
+	conf = open(file, 'r')
+	for line in conf:
+		line = line.strip() # remove newlines and whitespace
+		if line: # no empty lines
+			if line.find("#"): # valid lines should not contain #
+				items.append(line)
+	conf.close()
+	if len(items):
+		return items
+	return 0 # empty file
+
+def newsParser(file):
+	items = []
+	data = open(file, 'r').read()
+	data = data.split("\x1d")
+	for anews in data:
+		anews = anews.split("\x1c")
+		if len(anews) == 3:
+			date = reverseWiredDate(anews[1])
+			if date: anews[1] = date
+			items.append(anews)
+	if len(items):
+		return items
+	return 0
+	
+def reverseWiredDate(date):
+	try:
+		date = time.mktime(time.strptime(date[0:-6], "%Y-%m-%dT%H:%M:%S"))
+	except:
+		return 0
+	return date
+	
+arg1 = 0
+arg2 = 0
+try:
+	arg1 = sys.argv[1]
+	arg2 = sys.argv[2]
+except IndexError:
+	pass
+if not arg1 and not arg2:
+	print "usage: migrate /path/to/wired (--notest)"
+	sys.exit()
+if arg1:
+	path = str(arg1)
+	binpath = sys.path[0]+os.sep
+	config = wiredfunctions.loadConfig(binpath+"server.conf")
+	news = openZankaNews(path)
+	if not news: print "Failed to open zanka news file"
+	else: print "Imported "+str(len(news))+" news items from file"
+	users = openZankaUsers(path)
+	if not users: print "Failed to open zanka server user file"
+	else: print "Imported "+str(len(users))+" users from the file"
+	groups = openZankaGroups(path)
+	if not groups: print "Failed to open zanka server user file"
+	else: print "Imported "+str(len(groups))+" groups from file"
+	if not arg2 or arg2.upper() != "--NOTEST":
+		print "run migrate with --notest to write the data to the re:wired db"
+		sys.exit(0)
+	if arg2:
+		if arg2.upper() == "--NOTEST":
+			log = logging.getLogger("wiredServer")
+			log.setLevel(logging.CRITICAL)
+			db = wireddb.wiredDB(config,log)
+			db.loadData(0) # make sure the userdb is ready
+			for agroup in groups:
+				privstring = ""
+				for apriv in agroup[1:-1]:
+					privstring += str(apriv)+chr(28)
+				privstring = privstring[0:-1]
+				if not db.saveUser([agroup[0],"",agroup[0],0,privstring]):
+					print "Failed to save group "+str(agroup[0])+" to db"
+			#users
+			for auser in users:
+				privstring = ""
+				for apriv in auser[3:-1]:
+					privstring += str(apriv)+chr(28)
+				privstring = privstring[0:-1]
+				if not db.saveUser([auser[0],auser[1],auser[2],1,privstring]):
+					print "Failed to save user "+str(auser[0])+" to db"
+			## news
+			db.loadNews() # make sure newsdb is ready
+			for anews in news:
+				db.saveNews(anews)
+			print "migration completed"
