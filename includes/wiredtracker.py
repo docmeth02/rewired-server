@@ -18,9 +18,9 @@ class wiredTracker(threading.Thread):
         self.clients = self.parent.clients
         self.config = self.parent.config
         self.db = self.parent.db
-        self.tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tcpsock = None
         self.tlssock = None
-        self.udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udpsock = None
         self.name = None
         self.desc = None
         self.category = self.config['trackerCategory']
@@ -40,6 +40,7 @@ class wiredTracker(threading.Thread):
         self.cert = None
         self.hash = None
         self.nextUpdate = 0
+        self.regrefresh = time.time() + 1800  # Refresh registration every 30 minutes
 
     def run(self):
         if not self.config['trackerRegister']:
@@ -54,15 +55,22 @@ class wiredTracker(threading.Thread):
                 for num in range(1, 10):
                     if not self.keepalive:
                         break
-                    print num
                     time.sleep(1)
         self.disconnectTCPSocket()
 
         while self.registered and self.keepalive:
             if time.time() >= self.nextUpdate:
                 self.updateInfo()
-                self.updateRegistration()
+                self.updateTracker()
                 self.nextUpdate = time.time() + 60
+
+            if time.time() >= self.regrefresh:
+                self.logger.debug("Refreshing tracker registration")
+                self.updateRegistration()
+                self.regrefresh = time.time() + 1800  # 30 minutes
+                self.updateTracker()
+                self.logger.debug("Refresh successful!")
+
             time.sleep(1)
         self.logger.debug("Tracker thread exited")
 
@@ -110,8 +118,18 @@ class wiredTracker(threading.Thread):
         self.logger.info("Successfully registered with tracker %s", self.tracker)
         return 1
 
+    def updateRegistration(self):
+        self.connectTCPSocket()
+        if not self.connected:
+            self.logger.error("reregister: no connection to tracker")
+            return 0
+        self.register()
+        self.disconnectTCPSocket()
+        return 1
+
     def connectTCPSocket(self):
         try:
+            self.tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.tcpsock.connect((self.tracker, self.port))
             self.tlssock = ssl.wrap_socket(self.tcpsock, server_side=False, ssl_version=ssl.PROTOCOL_TLSv1)
             self.cert = self.tlssock.getpeercert(binary_form=True)
@@ -120,9 +138,10 @@ class wiredTracker(threading.Thread):
         self.connected = 1
         return 1
 
-    def updateRegistration(self):
+    def updateTracker(self):
         if not self.cert:
             return 0
+        self.udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         msg = "UPDATE " + str(self.hash) + chr(28) + str(self.onlineUsers) + chr(28) + str(self.guest) + chr(28) +\
         str(self.download) + chr(28) + str(self.files) + chr(28) + str(self.size) + chr(4)
         try:
@@ -139,6 +158,7 @@ class wiredTracker(threading.Thread):
             self.logger.error("Error sending update packet to tracker %s", self.tracker)
             return 0
         self.logger.debug("Updated tracker %s", self.tracker)
+        self.udpsock = None
         return 1
 
     def disconnectTCPSocket(self):
@@ -147,4 +167,5 @@ class wiredTracker(threading.Thread):
         self.connected = 0
         self.tcpsock.shutdown(socket.SHUT_RDWR)
         self.tcpsock.close()
+        self.tcpsock = None
         return 1
