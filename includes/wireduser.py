@@ -130,6 +130,8 @@ class wiredUser():
         dl = ""
         for id, transfer in transfers.items():
             if int(self.id) == int(transfer.userid):
+                if not transfer.active:
+                    break  # this is only a queued transfer
                 if transfer.type == "DOWN":
                     if dl:
                         dl += chr(29)

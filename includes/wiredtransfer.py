@@ -13,6 +13,8 @@ class wiredTransfer():
         self.parent = parent
         self.logger = parent.logger
         self.config = self.parent.config
+        self.time = time.time()
+        self.active = 0
         self.type = None
         self.userid = 0
         self.id = None

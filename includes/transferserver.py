@@ -35,6 +35,7 @@ class transferServer(threading.Thread):
                     break
                 try:
                     transfer = self.parent.transferqueue[transfer.id]
+                    transfer.active = 1
                     transfer.parent = self
                 except KeyError:
                     # probably send error here - not a valid transfer id
@@ -54,7 +55,7 @@ class transferServer(threading.Thread):
                     else:
                         self.logger.info("Upload %s for client %s finished successfully", transfer.id, self.ip)
                 self.lock.acquire(True)
-                self.parent.transferqueue.pop(str(transfer.id), 0)
+                self.parent.transferqueue.pop(transfer.id, None)
                 self.lock.release()
                 self.shutdown = 1
                 self.transferDone = 1
