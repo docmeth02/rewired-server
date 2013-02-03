@@ -249,4 +249,6 @@ class wiredPrivs():
 
         if self.banUsers or self.kickUsers:
             self.parent.admin = 1
+        else:
+            self.parent.admin = 0
         return 1

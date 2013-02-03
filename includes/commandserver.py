@@ -201,6 +201,8 @@ class commandServer(threading.Thread):
                 aclient.user.mapPrivs(privs)
                 aclient.handler.PRIVILEGES([])
                 self.lock.release()
+                # notify online clients that account may have changed
+                aclient.handler.notifyAll("304 " + aclient.user.buildStatusChanged() + chr(4))
         return 1
 
     def updateGroupPrivs(self, groupname, privs):
@@ -211,6 +213,8 @@ class commandServer(threading.Thread):
                 aclient.user.mapPrivs(privs)
                 aclient.handler.PRIVILEGES([])
                 self.lock.release()
+                # same as above
+                aclient.handler.notifyAll("304 " + aclient.user.buildStatusChanged() + chr(4))
         return 1
 
     def updateServerInfo(self):
