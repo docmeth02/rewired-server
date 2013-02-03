@@ -22,10 +22,13 @@ class wiredIndex(threading.Thread):
         self.files = 0
         self.sizeChanged = 0
         self.nextRun = 0
+        self.updateServerSizeIndex()
 
     def run(self):
-        time.sleep(5)  # wait some time to let the server finish startup
-        self.updateServerSizeIndex()
+        for i in range(1, 180):  # wait some time to let the server finish startup
+            if not self.keepalive:
+                break
+            time.sleep(1)
         while self.keepalive:
             if time.time() >= self.nextRun:
                 self.indexRoot()
@@ -70,6 +73,12 @@ class wiredIndex(threading.Thread):
         return 1
 
     def updateServerSizeIndex(self):
+        lastSize = self.size
+        lastFiles = self.files
         self.size = self.db.getServerSize()
         self.files = self.db.getServerFiles()
+        if lastSize == self.size and lastFiles == self.files:
+            return 0
+        self.logger.debug("Server filecount and size loaded from index successfully!")
+        self.sizeChanged = 1
         return 1
