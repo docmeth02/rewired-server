@@ -241,7 +241,7 @@ def checkArgv(argv):
         value = argv[1]
     except:
         return 0
-        return value.upper()
+    return value.upper()
 
 
 def normWiredPath(path):
