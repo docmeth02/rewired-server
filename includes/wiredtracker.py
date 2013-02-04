@@ -40,7 +40,7 @@ class wiredTracker(threading.Thread):
         self.cert = None
         self.hash = None
         self.nextUpdate = 0
-        self.regrefresh = time.time() + 1800  # Refresh registration every 30 minutes
+        self.regrefresh = time.time() + 3600  # Refresh registration every 60 minutes
 
     def run(self):
         if not self.config['trackerRegister']:
@@ -67,8 +67,7 @@ class wiredTracker(threading.Thread):
             if time.time() >= self.regrefresh:
                 self.logger.debug("Refreshing tracker registration")
                 self.updateRegistration()
-                self.regrefresh = time.time() + 1800  # 30 minutes
-                self.updateTracker()
+                self.regrefresh = time.time() + 3600  # 60 minutes
                 self.logger.debug("Refresh successful!")
 
             time.sleep(1)
