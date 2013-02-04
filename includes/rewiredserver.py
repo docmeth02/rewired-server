@@ -149,6 +149,9 @@ class reWiredServer():
         # check for zombies
         for aid, aclient in self.clients.items():
             if not aclient.is_alive() or aclient.lastPing <= (time() - 300):
+                if int(aclient.lastActive) + 300 > time():
+                    self.logger.info("userid %s: no ping for %s seconds, but still active!", aid, (time() - aclient.lastPing))
+                    break
                 self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",\
                                   aid, (time() - aclient.lastPing))
                 try:
