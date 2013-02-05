@@ -64,6 +64,7 @@ class reWiredServer():
         if not self.bundled:
             signal.signal(signal.SIGINT, self.serverShutdown)
             signal.signal(signal.SIGTERM, self.serverShutdown)
+            signal.signal(signal.SIGFPE, self.restartTracker)
         while self.keeprunning:
             try:
                 inputready, outputready, exceptready = select.select([self.commandSock, self.transferSock], [], [], 1)
@@ -73,12 +74,11 @@ class reWiredServer():
                     if asocket == self.transferSock:
                         transferServer(self, self.transferSock.accept()).start()
             except select.error as exception:
-                self.logger.info("Main thread shutdown initiated")
-                self.keeprunning = 0
-                pass
+                continue
             except ssl.SSLError as exception:
                 self.logger.error(exception)
-                pass
+                continue
+        self.logger.info("Main thread shutdown initiated")
         while threading.active_count() > 1 and not self.bundled:
             self.logger.info(str(threading.active_count()) + " threads still alive... " + str(threading.enumerate()))
             sleep(1)
@@ -208,3 +208,13 @@ class reWiredServer():
         sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
                                keyfile=str(self.config['cert']))  # , ssl_version=ssl.PROTOCOL_TLSv1)
         return sock
+
+    def restartTracker(self, signum, frame):
+        self.logger.info("Restarting tracker thread...")
+        self.tracker.keepalive = 0
+        sleep(3)
+        self.tracker.join(5)
+        del self.tracker
+        self.tracker = wiredtracker.wiredTracker(self)
+        self.tracker.start()
+        return 1

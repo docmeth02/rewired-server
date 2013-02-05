@@ -25,6 +25,15 @@ def shutdown():
     return 0
 
 
+def signalTrackerRestart():
+    global config
+    pid = wiredfunctions.getPID(config)
+    if int(pid) > 0:
+        os.kill(int(pid), signal.SIGFPE)
+        return 1
+    return 0
+
+
 def start():
     global config, binpath
     pid = wiredfunctions.getPID(config)
@@ -69,8 +78,14 @@ if arg:
             print "server restart complete"
         sys.exit()
 
+    if arg.upper() == "REGISTER":
+        if not signalTrackerRestart():
+            print "Failed to open re:wired pid file. Server not running?"
+        print "Signal sent to server successfully"
+        sys.exit()
 ## print usage
-print "Usage: rewiredctl [ stop | start | restart ]"
+print "Usage: rewiredctl [ stop | start | restart | register]"
 print "   stop      stop re:wired server"
-print "   start start re:wired server as a daemon"
+print "   start     start re:wired server as a daemon"
 print "   restart   shutdown and then restart the re:wired daemon"
+print "   register  force tracker registration"
