@@ -211,10 +211,12 @@ class reWiredServer():
 
     def restartTracker(self, signum, frame):
         self.logger.info("Restarting tracker thread...")
-        self.tracker.keepalive = 0
-        sleep(3)
-        self.tracker.join(5)
-        del self.tracker
+        try:
+            self.tracker.keepalive = 0
+            self.tracker.join(5)
+            del self.tracker
+        except:
+            pass
         self.tracker = wiredtracker.wiredTracker(self)
         self.tracker.start()
         return 1
