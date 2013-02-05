@@ -93,6 +93,7 @@ class wiredTracker(threading.Thread):
 
     def register(self):
         if not self.connected:
+            self.logger.error("Register: Not connected!")
             return 0
         try:
             self.tlssock.write("HELLO" + chr(4))
@@ -120,7 +121,7 @@ class wiredTracker(threading.Thread):
     def updateRegistration(self):
         self.connectTCPSocket()
         if not self.connected:
-            self.logger.error("reregister: no connection to tracker")
+            self.logger.error("updateRegistration: no connection to tracker")
             return 0
         self.register()
         self.disconnectTCPSocket()
@@ -133,12 +134,13 @@ class wiredTracker(threading.Thread):
             self.tlssock = ssl.wrap_socket(self.tcpsock, server_side=False, ssl_version=ssl.PROTOCOL_TLSv1)
             self.cert = self.tlssock.getpeercert(binary_form=True)
         except:
-            return 1
+            return 0
         self.connected = 1
         return 1
 
     def updateTracker(self):
         if not self.cert:
+            self.logger.error("updateTracker: No certificate found!")
             return 0
         self.udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         msg = "UPDATE " + str(self.hash) + chr(28) + str(self.onlineUsers) + chr(28) + str(self.guest) + chr(28) +\
