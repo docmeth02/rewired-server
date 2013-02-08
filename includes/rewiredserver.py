@@ -136,7 +136,7 @@ class reWiredServer():
         self.cleantimer = threading.Timer(60.0, self.houseKeeping)  # call ourself again in 60 seconds
         self.cleantimer.start()
         if self.indexer.sizeChanged:    # the indexer messaged that the server info changed
-            self.logger.debug("Server size changed: Sending new server info for all cients")
+            self.logger.debug("Server size changed: Sending new server info to all cients")
             for aid, aclient in self.clients.items():  # now update all clients
                 aclient.lock.acquire()
                 aclient.serverSize = self.indexer.size
@@ -146,12 +146,14 @@ class reWiredServer():
             self.indexer.lock.acquire()
             self.indexer.sizeChanged = 0
             self.indexer.lock.release()
+
         # check for zombies
         for aid, aclient in self.clients.items():
             if not aclient.is_alive() or aclient.lastPing <= (time() - 300):
-                if int(aclient.lastActive) + 300 > time():
-                    self.logger.info("userid %s: no ping for %s seconds, but still active!", aid, (time() - aclient.lastPing))
-                    break
+                if int(aclient.lastActive) + 300 > time() and aclient.is_alive():  # This user does not send ping, but is still active
+                    self.logger.info("userid %s: no ping for %s secs, but still active!", aid, (time() - aclient.lastPing))
+                    continue
+
                 self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",\
                                   aid, (time() - aclient.lastPing))
                 try:
@@ -163,15 +165,14 @@ class reWiredServer():
                 except socket.error:
                     self.clients.pop(aclient.id, 0)
                     self.lock.release()
-                    self.logger.error("dead socket for client %s", aid)
-                    pass
+                    self.logger.error("Client %s: socket was already dead", aid)
         return 1
 
     def threadDebug(self):
         if not self.keeprunning:
             return 0
         self.logger.info(str(threading.active_count()) + " active threads:" + str(threading.enumerate()))
-        self.threadDebugtimer = threading.Timer(1800.0, self.threadDebug)  # call ourself again in 60 seconds
+        self.threadDebugtimer = threading.Timer(1800.0, self.threadDebug)
         self.threadDebugtimer.start()
         return 1
 
