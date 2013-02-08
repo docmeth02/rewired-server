@@ -60,10 +60,10 @@ class wiredIndex(threading.Thread):
     def updateServerSize(self, filelist):
         lastSize = self.size
         lastFiles = self.files
-        if not len(filelist):
-            return 0  # no files in list
         self.size = 0
         self.files = 0
+        if not len(filelist):
+            return 0  # no files in list
         for afile in filelist:
             if str(afile['type']).upper() == "FILE":
                 self.size += int(afile['size'])
