@@ -40,8 +40,10 @@ class wiredIndex(threading.Thread):
         self.logger.info("Starting index run")
         filehandler = wiredfiles.wiredFiles(self)
         rootlist = filehandler.getRecursiveDirList("/")  # get filelist
-        self.db.updateIndex(rootlist)  # update indexdb
+        self.logger.debug("Pruning the index db...")
         self.db.pruneIndex(self.config)  # check for deleted files and prune them from the db
+        self.logger.debug("Indexing files...")
+        self.db.updateIndex(rootlist)  # update indexdb
         self.updateServerSize(rootlist)  # update server info values
         self.logger.info("Finished index run: %s files totaling %s bytes.", self.files, self.size)
         return 1
