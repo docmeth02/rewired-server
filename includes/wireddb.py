@@ -121,6 +121,10 @@ class wiredDB():
             self.logger.error("db returned empty news")
             data = []
         self.closeDB()
+        try:
+            data = sorted(data, key=lambda anews: anews[1])
+        except:
+            pass
         return data
 
     def saveNews(self, news):
@@ -180,7 +184,6 @@ class wiredDB():
         for aitem in data:
             if not os.path.exists(str(config['fileRoot']) + str(aitem[0])):
                 self.pointer.execute("DELETE FROM wiredIndex WHERE name = ?", [aitem[0]])
-                #self.logger.debug("removed deleted file %s from file index", aitem[0])
         self.conn.commit()
         self.pointer.execute("VACUUM")
         self.conn.commit()
