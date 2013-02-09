@@ -188,11 +188,15 @@ class wiredDB():
         self.openIndex()
         self.pointer.execute("SELECT * FROM wiredIndex;")
         data = self.pointer.fetchall()
+        lookup = {}
+        for afile in filelist:
+            lookup[afile['name']] = afile['type']
         for aitem in data:
-            check = 0
-            check = [i for i in filelist if i['name'] == aitem[0]]
-            if not check:
-                self.pointer.execute("DELETE FROM wiredIndex WHERE name = ?", [aitem[0]])
+            if aitem[0] in lookup:
+                if lookup[aitem[0]] == aitem[1]:
+                    continue  # all good
+            # file vanished - remove from index
+            self.pointer.execute("DELETE FROM wiredIndex WHERE name = ?", [aitem[0]])
         self.conn.commit()
         self.pointer.execute("VACUUM")
         self.conn.commit()
