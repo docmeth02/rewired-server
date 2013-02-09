@@ -164,9 +164,15 @@ class wiredDB():
         self.openIndex()
         if not self.openIndex():
             return 0
+        processed = 0
+        notify = time()
         for aitem in filelist:
             self.pointer.execute("INSERT OR REPLACE INTO wiredIndex VALUES (?, ?, ?, ?, ?);", [str(aitem['name']), \
                                 str(aitem['type']), str(aitem['size']), str(aitem['created']), str(aitem['modified'])])
+            processed += 1
+            if time() >= notify:
+                self.logger.debug("Index: processed %s out of %s items.", processed, len(filelist))
+                notify = time() + 60
         self.conn.commit()
         self.closeIndex()
         return 1
