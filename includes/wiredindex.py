@@ -39,6 +39,7 @@ class wiredIndex(threading.Thread):
     def indexRoot(self):
         self.logger.info("Starting index run")
         filehandler = wiredfiles.wiredFiles(self)
+        self.logger.debug("Gathering filelist...")
         rootlist = filehandler.getRecursiveDirList("/")  # get filelist
         self.logger.debug("Pruning the index db...")
         self.db.pruneIndex(self.config, rootlist)  # check for deleted files and prune them from the db
