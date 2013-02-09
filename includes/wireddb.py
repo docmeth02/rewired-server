@@ -76,11 +76,12 @@ class wiredDB():
                             chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) +\
                             '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '0' +\
                             chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '1'])
-        self.pointer.execute("INSERT OR IGNORE INTO wiredUsers VALUES (?, ?, ?, ?, ?);", ["guest", "", "", 1, '0' +\
-                            chr(28) + '0' + chr(28) + '1' + chr(28) + '0' + chr(28) + '1' + chr(28) + '1' + chr(28) +\
-                            '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' +\
-                            chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) +\
-                            '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0'])
+        if self.config['guestOn']:
+            self.pointer.execute("INSERT OR IGNORE INTO wiredUsers VALUES (?, ?, ?, ?, ?);", ["guest", "", "", 1, '0' +\
+                                chr(28) + '0' + chr(28) + '1' + chr(28) + '0' + chr(28) + '1' + chr(28) + '1' + chr(28) +\
+                                '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' +\
+                                chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) +\
+                                '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0'])
         self.conn.commit()
         data = 0
         self.pointer.execute("SELECT * FROM wiredUsers WHERE type=?;", [type])

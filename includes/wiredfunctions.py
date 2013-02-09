@@ -130,6 +130,7 @@ def loadConfig(confFile):
     trackerCategory = string(default="")
     trackerBandwidth = integer(default=1000000)
     serverPidFile = string(default="/opt/rewired/server.pid")
+    guestOn = boolean(default=True)
     # loglevels: debug, info, warning, error, none
     logLevel = string(default=debug)"""
     spec = default.split("\n")
