@@ -41,7 +41,7 @@ class wiredIndex(threading.Thread):
         filehandler = wiredfiles.wiredFiles(self)
         rootlist = filehandler.getRecursiveDirList("/")  # get filelist
         self.logger.debug("Pruning the index db...")
-        self.db.pruneIndex(self.config)  # check for deleted files and prune them from the db
+        self.db.pruneIndex(self.config, rootlist)  # check for deleted files and prune them from the db
         self.logger.debug("Indexing files...")
         self.db.updateIndex(rootlist)  # update indexdb
         self.updateServerSize(rootlist)  # update server info values
@@ -63,7 +63,7 @@ class wiredIndex(threading.Thread):
         self.size = 0
         self.files = 0
         if not len(filelist):
-            return 0  # no files in list
+                return 0  # no files in list
         for afile in filelist:
             if str(afile['type']).upper() == "FILE":
                 self.size += int(afile['size'])

@@ -184,12 +184,14 @@ class wiredDB():
         self.closeIndex()
         return result
 
-    def pruneIndex(self, config):
+    def pruneIndex(self, config, filelist):
         self.openIndex()
         self.pointer.execute("SELECT * FROM wiredIndex;")
         data = self.pointer.fetchall()
         for aitem in data:
-            if not os.path.exists(str(config['fileRoot']) + str(aitem[0])):
+            check = 0
+            check = [i for i in filelist if i['name'] == aitem[0]]
+            if not check:
                 self.pointer.execute("DELETE FROM wiredIndex WHERE name = ?", [aitem[0]])
         self.conn.commit()
         self.pointer.execute("VACUUM")
