@@ -147,6 +147,9 @@ class reWiredServer():
             self.indexer.sizeChanged = 0
             self.indexer.lock.release()
 
+        #check for index cache usage here
+        self.indexer.pruneQueryCache()
+
         # check for zombies
         for aid, aclient in self.clients.items():
             if not aclient.is_alive() or aclient.lastPing <= (time() - 300):

@@ -18,6 +18,7 @@ class commandServer(threading.Thread):
         self.parent = parent
         self.socket = parentsocket
         self.logger = self.parent.logger
+        self.indexer = self.parent.indexer
         self.shutdown = 0
         self.config = self.parent.config
         self.protoVersion = "1.1"
