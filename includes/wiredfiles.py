@@ -213,14 +213,14 @@ class wiredFiles():
         srcpath = str(self.rootpath) + str(src)
         destpath = str(self.rootpath) + str(dest)
         if not os.path.exists(srcpath) or os.path.exists(destpath):
-            print "Err1"
             return 0
         try:
             shutil.move(srcpath, destpath)
-        except IOError:
-            print "Err2"
+        except (IOError, OSError) as e:
+            self.logger.error("Move failed: %s -> %s: %s",srcpath, destpath, e)
             return 0
         if os.path.exists(srcpath) or not os.path.exists(destpath):
+            self.logger.error("Something went wrong while trying to move %s -> %s", srcpath, destpath)
             return 0
         return 1
 
