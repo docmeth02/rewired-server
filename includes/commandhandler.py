@@ -100,14 +100,16 @@ class commandHandler():
     def WHO(self, parameters):
         chatid = int(parameters[0])
         clients = self.parent.getUserList()
-        self.parent.parent.lock.acquire()
+        userlist = {}
+
         for aid, aclient in clients.items():
-            # add user is in chat check
             try:
                 check = aclient.user.activeChats[int(chatid)]
             except KeyError:
-                check = 0
-            if check:
+                continue
+            userlist[aclient.user.activeChats[int(chatid)]] = aclient
+
+        for aid, aclient in sorted(userlist.items(), key=lambda x: x):
                 ip = ""
                 host = ""
                 if self.parent.user.checkPrivs("getUserInfo"):
@@ -120,7 +122,6 @@ class commandHandler():
                 self.parent.sendData(response)
 
         self.parent.sendData('311 ' + str(chatid) + chr(4))  # send userlist done
-        self.parent.parent.lock.release()
         return 1
 
     def INFO(self, parameters):
@@ -283,7 +284,7 @@ class commandHandler():
     def joinChat(self, chat):
         clients = self.parent.getUserList()
         userlist = self.parent.user.buildUserList()
-        self.parent.user.activeChats[int(chat)] = 1
+        self.parent.user.activeChats[int(chat)] = time.time()  # time user joined this chat
         self.parent.parent.lock.acquire()
         for aid, aclient in clients.items():
             if aclient.id != self.parent.id and int(chat) in aclient.user.activeChats:
