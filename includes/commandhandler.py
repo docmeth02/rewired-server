@@ -73,8 +73,7 @@ class commandHandler():
             return 0
         if self.parent.user.loginDone:
             # qwired will try to relogin on an already established connection:
-            self.parent.sendData('510 Login Failed' + chr(4))
-            #self.parent.sendData('201 '+str(self.parent.user.id)+chr(4))
+            self.parent.sendData('201 ' + str(self.parent.user.id) + chr(4))
             self.logger.info("Qwired reconnect fix 1")
             return 1
         self.parent.user.id = self.parent.getGlobalUserID()  # get ourself a shiny new userid
