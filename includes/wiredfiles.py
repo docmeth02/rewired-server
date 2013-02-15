@@ -1,7 +1,10 @@
 import os
+import sys
 import shutil
 import hashlib
 import diskusage
+import threading
+import wiredfunctions
 
 
 class wiredFiles():
@@ -287,3 +290,51 @@ def touch(fname, times=None):
     if not open(fname, 'w').close():
         return 0
     return 1
+
+
+class LISTgetter(threading.Thread):
+    def __init__(self, parent, user, indexer, path, datasink):
+        threading.Thread.__init__(self)
+        self.lock = threading.Lock()
+        self.parent = parent
+        self.user = user
+        self.indexer = indexer
+        self.logger = self.parent.logger
+        self.config = self.parent.config
+        self.path = path
+        self.sink = datasink
+        self.logger.debug("INIT LISTgetter Thread")
+
+    def run(self):
+        self.logger.debug("RUN LISTgetter Thread")
+        files = wiredFiles(self)
+        if files.isDropBox(self.path) and not self.user.checkPrivs("viewDropboxes"):
+            # send empty result for this dropbox
+            self.logger.debug("no access to dropbox %s", self.path)
+            spaceAvail = files.spaceAvail(self.path)
+            self.sink('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
+            self.shutdown()
+
+        filelist = files.getDirList(self.path)
+        if not type(filelist) is list:
+            self.logger.error("invalid value in LIST for %s", self.path)
+            self.parent.reject(520)
+            self.shutdown()
+        for aitem in filelist:
+            dirpath = os.path.join(str(self.path), str(aitem['name']))
+            ftype = 0
+            if aitem['type'] == 'dir':
+                ftype = files.getFolderType(dirpath)
+            self.sink('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) + str(aitem['size']) +\
+                                chr(28) + wiredfunctions.wiredTime(aitem['created']) + chr(28) +\
+                                wiredfunctions.wiredTime(aitem['modified']) + chr(4))
+        spaceAvail = files.spaceAvail(self.path)
+        self.sink('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
+        self.logger.debug("DONE LISTgetter Thread")
+        self.shutdown()
+
+    def shutdown(self):
+        self.logger.debug("EXIT LISTgetter Thread")
+        sys.exit()
+
+
