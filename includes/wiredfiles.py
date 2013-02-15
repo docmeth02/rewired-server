@@ -19,7 +19,7 @@ class wiredFiles():
         hash = ""
         if os.path.isdir(targetpath):
             type = "dir"
-            subdir = self.simpleDirList(targetpath)
+            subdir = self.simpleDirList(target)
             size = len(subdir)
         if os.path.isfile(targetpath):
             size = stat.st_size
@@ -109,6 +109,7 @@ class wiredFiles():
         return 0
 
     def getDirList(self, dir):
+        path = dir
         dir = str(self.rootpath) + str(dir)
         data = []
         try:
@@ -120,7 +121,7 @@ class wiredFiles():
                 continue
             if os.path.isdir(os.path.join(dir, aitem)):
                 stat = os.stat(os.path.join(dir, aitem))
-                subdir = self.simpleDirList(os.path.join(dir, aitem))
+                subdir = self.simpleDirList(os.path.join(path, aitem))
                 if subdir:
                     size = len(subdir)
                 else:
@@ -261,13 +262,21 @@ class wiredFiles():
             return 0
         return stat.f_frsize * stat.f_bavail
 
-    def simpleDirList(self, dir):
+    def simpleDirList(self, dir, cached=True):
+        path = dir
+        dir = str(self.rootpath) + str(dir)
         filelist = []
-        try:
-            list = os.listdir(dir)
-        except OSError:
-            self.logger.error("Server failed to open %s", dir)
-            return 0
+        list = 0
+        if cached:
+            list = self.parent.indexer.getCachedDirList(path)
+        if not list:
+            if cached:
+                self.logger.debug("%s DIRECT lookup", path)
+            try:
+                list = os.listdir(dir)
+            except OSError:
+                self.logger.error("Server failed to open %s", dir)
+                return 0
         for aitem in list:
             if aitem[0] != ".":
                 filelist.append(aitem)

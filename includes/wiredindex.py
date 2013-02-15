@@ -23,6 +23,10 @@ class wiredIndex(threading.Thread):
         self.sizeChanged = 0
         self.nextRun = 0
         self.updateServerSizeIndex()
+        self.queryCache = {}
+        self.queryCacheLimit = 500  # max querycache items
+        self.queryCacheTTL = 600  # time in seconds query cache items expire after
+        self.lastindex = 0
 
     def run(self):
         for i in range(1, 180):  # wait some time to let the server finish startup
@@ -47,6 +51,7 @@ class wiredIndex(threading.Thread):
         self.db.updateIndex(rootlist)  # update indexdb
         self.updateServerSize(rootlist)  # update server info values
         self.logger.info("Finished index run: %s files totaling %s bytes.", self.files, self.size)
+        self.lastindex = time.time()
         return 1
 
     def searchIndex(self, searchString):
@@ -84,4 +89,54 @@ class wiredIndex(threading.Thread):
             return 0
         self.logger.debug("Server filecount and size loaded from index successfully!")
         self.sizeChanged = 1
+        return 1
+
+    def getCachedDirList(self, path):
+        # this needs to be threadsafe as all clients can access it concurrently
+        if self.lastindex + 1800 <= time.time():
+            self.logger.info("Index cache EXPIRED on %s", path)
+            return 0
+
+        if path in self.queryCache:  # check for hit in ramcache
+            if self.queryCache[path]['date'] + 600 >= time.time():
+                self.logger.debug("query cache HIT on %s", path)
+                return self.queryCache[path]['data']  # still valid
+            self.lock.acquire()
+            self.queryCache.pop(path, 0)  # expired - purge it from cache
+            self.lock.release()
+            self.logger.debug("query cache item EXPIRED %s", path)
+
+        # get result from index db
+        self.lock.acquire()
+        result = self.db.getDirListing(path)
+        self.lock.release()
+
+        if result:
+            self.logger.debug("index cache HIT on %s", path)
+            if not path in self.queryCache:
+                self.lock.acquire()
+                self.queryCache[path] = {'date': time.time(), 'data': result}
+                self.lock.release()
+            return result
+        self.logger.debug("index cache MISS on %s", path)
+        return 0
+
+    def pruneQueryCache(self):
+        self.lock.acquire()
+        for key, aitem in self.queryCache.items():
+            if aitem['date'] + self.queryCacheTTL <= time.time():
+                self.queryCache.pop(key, 0)
+                self.logger.debug("queryCache prune: %s", key)
+                continue
+            else:
+                self.logger.debug("queryCache still valid: %s", key)
+
+        if len(self.queryCache) > self.queryCacheLimit:
+            # reduce length to queryCacheLimit
+            reducerange = sorted(self.queryCache, key=lambda x: self.queryCache[x]['date'])
+            for i in range(len(reducerange) - self.queryCacheLimit):
+                print reducerange[i]
+                self.queryCache.pop(reducerange[i], 0)
+
+        self.lock.release()
         return 1

@@ -229,6 +229,22 @@ class wiredDB():
             pass
         return result
 
+    def getDirListing(self, path):
+        self.openIndex()
+        dirlist = []
+        self.pointer.execute("SELECT subname NOT GLOB '*/*' AS sameDir, subname, name, type, size, created, modified\
+                             FROM (SELECT substr(name, length(?) + 2) AS subname, name, type, size, created, modified\
+                             FROM wiredindex WHERE name GLOB ? || '*')", [str(path), str(path)])
+        result = self.pointer.fetchall()
+        for aresult in result:
+            if aresult[0] and len(aresult[1]):
+                dirlist.append(aresult[2:])
+        self.conn.commit()
+        self.closeIndex()
+        if len(dirlist):
+            return dirlist
+        return 0
+
     ## Banned Users ##
     def openBans(self):
         if not self.openDB():
