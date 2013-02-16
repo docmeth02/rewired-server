@@ -33,6 +33,7 @@ class reWiredServer():
         self.globalPrivateChatID = 1
         self.clients = {}
         self.topics = {}
+        self.tracker = []
         self.transferqueue = {}
         self.binpath = path[0] + sep
         if not self.configfile:
@@ -50,8 +51,14 @@ class reWiredServer():
         self.users.loadUserDB()
         self.indexer = wiredindex.wiredIndex(self)
         self.indexer.start()
-        self.tracker = wiredtracker.wiredTracker(self)
-        self.tracker.start()
+        print "init Tracker"
+        print self.config['trackerUrl']
+        if self.config['trackerUrl']:
+            trackers = self.config['trackerUrl'].split(',')
+            for aTracker in trackers:
+                aTracker = wiredtracker.wiredTracker(self, aTracker.strip())
+                aTracker.start()
+                self.tracker.append(aTracker)
         # create listening sockets
         self.commandSock = self.open_command_socket()
         self.transferSock = self.open_transfer_socket()
@@ -115,7 +122,9 @@ class reWiredServer():
             atransfer.parent.socket.shutdown(socket.SHUT_RDWR)
             atransfer.parent.lock.release()
         self.indexer.keepalive = 0
-        self.tracker.keepalive = 0
+        if self.tracker:
+            for atracker in self.tracker:
+                atracker.keepalive = 0
         self.commandSock.close()
         self.transferSock.close()
         wiredfunctions.removePID(self.config)

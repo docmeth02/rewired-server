@@ -125,7 +125,7 @@ def loadConfig(confFile):
     port = integer(default=2000)
     serverBanner = string(default="/opt/rewired/banner.png")
     trackerRegister = boolean(default=False)
-    trackerUrl = string(default="wired.zankasoftware.com")
+    trackerUrl = list(default=list("wired.zankasoftware.com", "wired.zapto.org", "joshuamac.homeip.net"))
     trackerDNS = string(default="")
     trackerCategory = string(default="")
     trackerBandwidth = integer(default=1000000)
