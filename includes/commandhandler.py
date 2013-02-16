@@ -491,51 +491,12 @@ class commandHandler():
 
     ## Files ##
     def LIST(self, parameters):
-        files = wiredfiles.wiredFiles(self.parent)
-        if files.isDropBox(parameters[0]) and not self.parent.user.checkPrivs("viewDropboxes"):
-            # send empty result for this dropbox
-            self.logger.debug("no access to dropbox %s", parameters[0])
-            spaceAvail = files.spaceAvail(parameters[0])
-            self.parent.sendData('411 ' + str(parameters[0]) + chr(28) + str(spaceAvail) + chr(4))
-            return 1
-
-        filelist = files.getDirList(parameters[0])
-        if not type(filelist) is list:
-            self.logger.error("invalid value in LIST for %s", parameters[0])
-            self.reject(520)
-            return 0
-        for aitem in filelist:
-            path = os.path.join(str(parameters[0]), str(aitem['name']))
-            ftype = 0
-            if aitem['type'] == 'dir':
-                ftype = files.getFolderType(path)
-            self.parent.sendData('410 ' + wiredfunctions.normWiredPath(path) + chr(28) + str(ftype) + chr(28) + str(aitem['size']) +\
-                                chr(28) + wiredfunctions.wiredTime(aitem['created']) + chr(28) +\
-                                wiredfunctions.wiredTime(aitem['modified']) + chr(4))
-        spaceAvail = files.spaceAvail(parameters[0])
-        self.parent.sendData('411 ' + str(parameters[0]) + chr(28) + str(spaceAvail) + chr(4))
-        return 1
+        wiredfiles.LISTgetter(self, self.parent.user, None, parameters[0], self.parent.sendData).start()
+        return 0
 
     def LISTRECURSIVE(self, parameters):
-        files = wiredfiles.wiredFiles(self.parent)
-        filelist = files.getRecursiveDirList(parameters[0])
-        if not type(filelist) is list:
-            self.logger.error("invalid value in LISTRECURSIVE for %s", parameters[0])
-            self.reject(520)
-            return 0
-        if len(filelist) != 0:
-            for aitem in filelist:
-                path = os.path.join(str(parameters[0]), str(aitem['name']))
-                ftype = 0
-                if aitem['type'] == 'dir':
-                    ftype = files.getFolderType(path)
-                self.parent.sendData('410 ' + wiredfunctions.normWiredPath(path) + chr(28) + str(ftype) + chr(28) +\
-                                    str(aitem['size']) + chr(28) + wiredfunctions.wiredTime(aitem['created']) +\
-                                    chr(28) + wiredfunctions.wiredTime(aitem['modified']) + chr(4))
-
-        spaceAvail = files.spaceAvail(parameters[0])
-        self.parent.sendData('411 ' + str(parameters[0]) + chr(28) + str(spaceAvail) + chr(4))
-        return 1
+        wiredfiles.LISTRECURSIVEgetter(self, self.parent.user, None, parameters[0], self.parent.sendData).start()
+        return 0
 
     def STAT(self, parameters):
         files = wiredfiles.wiredFiles(self.parent)
