@@ -8,7 +8,7 @@ from M2Crypto import X509, RSA
 
 
 class wiredTracker(threading.Thread):
-    def __init__(self, parent):
+    def __init__(self, parent, trackerurl):
         threading.Thread.__init__(self)
         self.lock = threading.Lock()
         self.parent = parent
@@ -21,7 +21,9 @@ class wiredTracker(threading.Thread):
         self.tcpsock = None
         self.tlssock = None
         self.udpsock = None
-        self.name = None
+        self.tracker = trackerurl
+        self.name = self.tracker
+        self.servername = None
         self.desc = None
         self.category = self.config['trackerCategory']
         self.uri = "wired://" + str(self.config['host']) + ":" + str(self.config['port']) + "/"
@@ -33,7 +35,6 @@ class wiredTracker(threading.Thread):
         self.guest = 0
         self.onlineUsers = 0
         self.bandwidth = self.config['trackerBandwidth']
-        self.tracker = self.config['trackerUrl']
         self.port = 2002
         self.registered = 0
         self.connected = 0
@@ -41,6 +42,7 @@ class wiredTracker(threading.Thread):
         self.hash = None
         self.nextUpdate = 0
         self.regrefresh = time.time() + 3600  # Refresh registration every 60 minutes
+        self.retry = 10
 
     def run(self):
         if not self.config['trackerRegister']:
@@ -52,9 +54,10 @@ class wiredTracker(threading.Thread):
             self.connectTCPSocket()
             if not self.register():
                 self.logger.error("Error while registering with tracker %s", self.tracker)
-                for num in range(1, 10):
+                for num in range(1, self.retry):
                     if not self.keepalive:
                         break
+                    self.retry += 1
                     time.sleep(1)
         self.disconnectTCPSocket()
 
@@ -71,9 +74,10 @@ class wiredTracker(threading.Thread):
                 self.logger.debug("Refresh successful!")
 
             time.sleep(1)
-        self.logger.debug("Tracker thread exited")
+        self.logger.debug("Tracker %s stopped", self.tracker)
 
     def checkPrivs(self):
+        self.parent.lock.acquire()
         users = self.db.loadUsers()
         for auser in users:
             if auser[0] == "guest":
@@ -81,11 +85,12 @@ class wiredTracker(threading.Thread):
                 guest.stringToPrivs(auser[4])
                 self.download = int(guest.download)
                 self.guest = 1
+        self.parent.lock.release()
         return 1
 
     def updateInfo(self):
         self.onlineUsers = len(self.clients)
-        self.name = self.config['serverName']
+        self.servername = self.config['serverName']
         self.desc = self.config['serverDesc']
         self.files = self.indexer.files
         self.size = self.indexer.size
@@ -121,7 +126,7 @@ class wiredTracker(threading.Thread):
     def updateRegistration(self):
         self.connectTCPSocket()
         if not self.connected:
-            self.logger.error("updateRegistration: no connection to tracker")
+            self.logger.error("updateRegistration: no connection to tracker %s", self.tracker)
             return 0
         self.register()
         self.disconnectTCPSocket()
