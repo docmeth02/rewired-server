@@ -338,3 +338,41 @@ class LISTgetter(threading.Thread):
         sys.exit()
 
 
+class LISTRECURSIVEgetter(threading.Thread):
+    def __init__(self, parent, user, indexer, path, datasink):
+        threading.Thread.__init__(self)
+        self.lock = threading.Lock()
+        self.parent = parent
+        self.user = user
+        self.indexer = indexer
+        self.logger = self.parent.logger
+        self.config = self.parent.config
+        self.path = path
+        self.sink = datasink
+        self.logger.debug("INIT LISTRECURSIVEgetter Thread")
+
+    def run(self):
+        files = wiredFiles(self)
+        filelist = files.getRecursiveDirList(self.path)
+        if not type(filelist) is list:
+            self.logger.error("invalid value in LISTRECURSIVEgetter for %s", self.path)
+            self.parent.reject(520)
+            self.shutdown()
+        if len(filelist) != 0:
+            for aitem in filelist:
+                dirpath = os.path.join(str(self.path), str(aitem['name']))
+                ftype = 0
+                if aitem['type'] == 'dir':
+                    ftype = files.getFolderType(dirpath)
+                self.sink('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) +\
+                                    str(aitem['size']) + chr(28) + wiredfunctions.wiredTime(aitem['created']) +\
+                                    chr(28) + wiredfunctions.wiredTime(aitem['modified']) + chr(4))
+
+        spaceAvail = files.spaceAvail(self.path)
+        self.sink('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
+        self.shutdown()
+
+    def shutdown(self):
+        self.logger.debug("EXIT LISTRECURSIVEgetter Thread")
+        sys.exit()
+
