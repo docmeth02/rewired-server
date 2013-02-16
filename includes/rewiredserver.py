@@ -187,10 +187,12 @@ class reWiredServer():
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind((self.config['host'], self.config['port']))
-        #sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,pack('ii', 1, 0))
         sock.listen(4)
+        if not ssl.RAND_status():
+            self.logger.error("Warning: not enough random seed available!")
+            ssl.RAND_add(str(time()), time() * time())
         sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
-                               keyfile=str(self.config['cert']))  # , ssl_version=ssl.PROTOCOL_TLSv1)
+                               keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
         return sock
 
     def open_transfer_socket(self):
@@ -204,10 +206,9 @@ class reWiredServer():
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind((self.config['host'], (int(self.config['port']) + 1)))
-        #sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,pack('ii', 1, 0))
         sock.listen(4)
         sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
-                               keyfile=str(self.config['cert']))  # , ssl_version=ssl.PROTOCOL_TLSv1)
+                               keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
         return sock
 
     def restartTracker(self, signum, frame):
