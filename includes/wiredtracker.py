@@ -107,7 +107,7 @@ class wiredTracker(threading.Thread):
                 self.logger.error("Invalid response to HELLO command from tracker %s", self.tracker)
                 return 0
             self.logger.debug("Connected to tracker %s", self.tracker)
-            self.tlssock.write("REGISTER " + str(self.category) + chr(28) + str(self.uri) + chr(28) + str(self.name) +\
+            self.tlssock.write("REGISTER " + str(self.category) + chr(28) + str(self.uri) + chr(28) + str(self.serverName) +\
                                chr(28) + str(self.bandwidth) + chr(28) + str(self.desc) + chr(4))
             response = self.tlssock.read()
             if int(response[:3]) != 700:
