@@ -11,6 +11,8 @@ class transferServer(threading.Thread):
         threading.Thread.__init__(self)
         self.lock = threading.Lock()
         self.parent = parent
+        self.wiredlog = self.parent.wiredlog
+        self.client = None
         self.socket = socket
         self.logger = self.parent.logger
         self.shutdown = 0
@@ -35,6 +37,11 @@ class transferServer(threading.Thread):
                     break
                 try:
                     transfer = self.parent.transferqueue[transfer.id]
+                    self.client = self.parent.clients[int(transfer.userid)]
+                except:
+                    self.logger.Error("Failed to find transfer or user object")
+
+                try:
                     transfer.active = 1
                     transfer.parent = self
                 except KeyError:
@@ -45,15 +52,25 @@ class transferServer(threading.Thread):
                 self.logger.debug("Found transfer id %s for %s", transfer.id, self.ip)
                 self.doTransfer = 1
                 if transfer.type == "DOWN":
+                # cleanup?
                     if not transfer.doDownload():
                         self.logger.error("Download %s to client %s failed.", transfer.id, self.ip)
+                        self.wiredlog.log_event('UPLOAD', {'RESULT': 'ABORTED', 'USER': self.client.user.user,\
+                                                        'NICK': self.client.user.nick, 'FILE': transfer.tx, 'SIZE': transfer.size})
                     else:
                         self.logger.info("Download %s for client %s finished successfully", transfer.id, self.ip)
+                        self.wiredlog.log_event('DOWNLOAD', {'RESULT': 'COMPLETE', 'USER': self.client.user.user,\
+                                                        'NICK': self.client.user.nick, 'FILE': transfer.file, 'SIZE': transfer.tx})
                 if transfer.type == "UP":
+                # cleanup?
                     if not transfer.doUpload():
                         self.logger.error("Upload %s from client %s failed.", transfer.id, self.ip)
+                        self.wiredlog.log_event('UPLOAD', {'RESULT': 'ABORTED', 'USER': self.client.user.user,\
+                                                        'NICK': self.client.user.nick, 'FILE': transfer.rx, 'SIZE': transfer.size})
                     else:
                         self.logger.info("Upload %s for client %s finished successfully", transfer.id, self.ip)
+                        self.wiredlog.log_event('UPLOAD', {'RESULT': 'COMPLETE', 'USER': self.client.user.user,\
+                                                        'NICK': self.client.user.nick, 'FILE': transfer.file, 'SIZE': transfer.rx})
                 self.lock.acquire(True)
                 self.parent.transferqueue.pop(transfer.id, None)
                 self.lock.release()
@@ -71,4 +88,3 @@ class transferServer(threading.Thread):
             self.logger.info("Transfer client %s dropped connection", self.ip)
 
         self.logger.info("Transfer client %s disconnected", self.ip)
-        #self.logger.error("Transfer process still alive after system exit!!!")
