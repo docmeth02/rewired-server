@@ -12,6 +12,7 @@ class commandHandler():
     def __init__(self, parent):
         self.parent = parent
         self.logger = parent.logger
+        self.wiredlog = parent.wiredlog
         self.config = self.parent.config
 
     def HELLO(self, parameters):
@@ -30,6 +31,7 @@ class commandHandler():
         if self.parent.user.loginDone:
             data = self.parent.user.buildStatusChanged()
             self.notifyAll("304 " + data + chr(4))
+            self.wiredlog.log_event('NICK', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick})
         return 1
 
     def ICON(self, parameters):
@@ -45,6 +47,7 @@ class commandHandler():
         if self.parent.user.loginDone:
             data = self.parent.user.buildStatusChanged()
             self.notifyAll("304 " + data + chr(4))
+            self.wiredlog.log_event('STATUS', {'USER': self.parent.user.user, 'STATUS': self.parent.user.status})
         return 1
 
     def CLIENT(self, parameters):
@@ -63,10 +66,12 @@ class commandHandler():
         return 1
 
     def PASS(self, parameters):
+
         self.logger.info("Login attempt for user %s", self.parent.user.user)
         user = self.parent.checkLogin(str(self.parent.user.user), str(parameters[0]), self.parent.user.ip)
         if not user:
                 # login failed
+            self.wiredlog.log_event('LOGIN', {'RESULT': 'FAILED', 'USER': self.parent.user.user, 'NICK': self.parent.user.nick})
             self.logger.error("Login failed for user %s", self.parent.user.user)
             self.reject(510)
             self.parent.shutdown = 1
@@ -91,6 +96,7 @@ class commandHandler():
         else:
             self.parent.user.mapPrivs(user[4])
         self.logger.info("Login for user %s successful.", self.parent.user.user)
+        self.wiredlog.log_event('LOGIN', {'RESULT': 'OK', 'USER': self.parent.user.user, 'NICK': self.parent.user.nick, 'IP': self.parent.user.ip})
         self.parent.sendData('201 ' + str(self.parent.user.id) + chr(4))  # send login successful
         self.parent.sendData(self.getTopic(1))  # send topic for public chat (if any)
         self.parent.loginDone()  # add this client to the logged in user list
@@ -134,6 +140,8 @@ class commandHandler():
             self.logger.error("Invalid INFO userid %s requested", parameters[0])
             return 0
         self.parent.sendData('308 ' + str(userinfo) + chr(4))
+        self.wiredlog.log_event('INFO', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick,\
+                                         'TARGET': clients[int(parameters[0])].user.user})
         return 1
 
     def SAY(self, parameters):
@@ -166,6 +174,7 @@ class commandHandler():
         self.parent.postNews(parameters[0])
         date = wiredfunctions.wiredTime(time.time())
         data = "322 " + str(self.parent.user.nick) + chr(28) + str(date) + chr(28) + str(parameters[0]) + chr(4)
+        self.wiredlog.log_event('POST', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick})
         self.logger.info("%s posted a news item", self.parent.user.nick)
         self.notifyAll(data)
         return 1
@@ -185,6 +194,7 @@ class commandHandler():
             return 0
         self.parent.clearNews()
         self.logger.info("%s cleared the news", self.parent.user.user)
+        self.wiredlog.log_event('CLEARNEWS', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick})
         self.parent.sendData("321 Done" + chr(4))
         return 1
 
@@ -203,6 +213,8 @@ class commandHandler():
             return 0
         data = parameters[0]
         self.notifyAll('309 ' + str(self.parent.id) + chr(28) + str(data) + chr(4))
+        self.wiredlog.log_event('BROADCAST', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick})
+        return 1
 
     def TOPIC(self, parameters):
         if not self.parent.user.checkPrivs("changeTopic"):
@@ -210,6 +222,8 @@ class commandHandler():
             return 0
         newtopic = {}
         chatid = int(parameters[0])
+        if chatid == 1:
+                    self.wiredlog.log_event('TOPIC', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick, 'TOPIC': str(parameters[1])})
         self.logger.debug("Topic of chat %s set to %s by %s", parameters[0], parameters[1], self.parent.id)
         try:
             newtopic['userid'] = self.parent.id
@@ -324,6 +338,7 @@ class commandHandler():
                     self.logger.error("Failed to terminate thread for user %s", aclient.user.nick)
                 self.parent.parent.lock.release()
 
+                self.wiredlog.log_event('KICK', {'USER': self.parent.user.user, 'VICTIM': aclient.user.user})
                 self.logger.info("%s was kicked by %s", aclient.user.nick, self.parent.user.user)
         return 1
 
@@ -363,6 +378,8 @@ class commandHandler():
                 except:
                     pass
                 self.parent.parent.lock.release()
+                self.wiredlog.log_event('BAN', {'USER': self.parent.user.user, 'VICTIM': aclient.user.user, 'DURATION': int(duration)})
+                self.logger.info("%s banned by %s for %s minutes", aclient.user.user, self.parent.user.user, duration)
         return 1
 
     ### USER MANAGEMENT ###
@@ -380,6 +397,7 @@ class commandHandler():
             self.parent.sendData("514 Account Exists" + chr(4))
             self.logger.info("%s tried to add already existing user %s", self.parent.user.user, username)
             return 0
+        self.wiredlog.log_event('CREATEUSER', {'USER': self.parent.user.user, 'NAME': username})
         self.logger.info("%s added user %s", self.parent.user.user, username)
         return 1
 
@@ -397,6 +415,7 @@ class commandHandler():
             self.parent.sendData("514 Account Exists" + chr(4))
             self.logger.info("%s tried to add already existing group %s", self.parent.user.user, group)
             return 0
+        self.wiredlog.log_event('CREATEGROUP', {'USER': self.parent.user.user, 'NAME': group})
         self.logger.info("%s added group %s", self.parent.user.user, group)
         return 1
 
@@ -451,6 +470,7 @@ class commandHandler():
             self.logger.error("server failed to delete account %s", parameters[0])
             # send error
         self.logger.info("%s deleted account %s", self.parent.user.user, parameters[0])
+        self.wiredlog.log_event('DELETEUSER', {'USER': self.parent.user.user, 'NAME': parameters[0]})
         return 1
 
     def DELETEGROUP(self, parameters):
@@ -462,6 +482,7 @@ class commandHandler():
             # send error
             return 0
         self.logger.info("%s deleted group %s", self.parent.user.user, parameters[0])
+        self.wiredlog.log_event('DELETEGROUP', {'USER': self.parent.user.user, 'NAME': parameters[0]})
         return 1
 
     def EDITUSER(self, parameters):
@@ -478,6 +499,7 @@ class commandHandler():
         # now update all users logged in as this user
         self.parent.updateUserPrivs(parameters[0], privstring)
         self.logger.info("%s modified account %s", self.parent.user.user, parameters[0])
+        self.wiredlog.log_event('EDITUSER', {'USER': self.parent.user.user, 'NAME': parameters[0]})
         return 1
 
     def EDITGROUP(self, parameters):
@@ -494,6 +516,7 @@ class commandHandler():
         # now update all users logged in and are member of this group
         self.parent.updateGroupPrivs(parameters[0], privstring)
         self.logger.info("%s modified group %s", self.parent.user.user, parameters[0])
+        self.wiredlog.log_event('EDITGROUP', {'USER': self.parent.user.user, 'NAME': parameters[0]})
         return 1
 
     ## Files ##
@@ -521,6 +544,7 @@ class commandHandler():
                                 wiredfunctions.wiredTime(aitem['modified']) + chr(4))
         spaceAvail = files.spaceAvail(parameters[0])
         self.parent.sendData('411 ' + str(parameters[0]) + chr(28) + str(spaceAvail) + chr(4))
+        self.wiredlog.log_event('LIST', {'USER': self.parent.user.user, 'DIR': parameters[0]})
         return 1
 
     def LISTRECURSIVE(self, parameters):
@@ -558,6 +582,7 @@ class commandHandler():
         wiredfunctions.wiredTime(filelist['modified']) + chr(28) + str(filelist['hash']) +\
         chr(28) + str(comment) + chr(4)
         self.parent.sendData(response)
+        self.wiredlog.log_event('STAT', {'USER': self.parent.user.user, 'NAME': parameters[0]})
         return 1
 
     def DELETE(self, parameters):
@@ -567,6 +592,7 @@ class commandHandler():
         file = wiredfiles.wiredFiles(self.parent)
         if file.delete(parameters[0]):
             self.logger.info("%s deleted file %s", self.parent.user.user, parameters[0])
+            self.wiredlog.log_event('DELETE', {'USER': self.parent.user.user, 'NAME': parameters[0]})
             return 1
         self.logger.error("server failed to delete file %s", parameters[0])
         return 0
@@ -580,6 +606,7 @@ class commandHandler():
             self.reject(520)
             return 0
         self.logger.info("%s moved %s to %s", self.parent.user.user, parameters[0], parameters[1])
+        self.wiredlog.log_event('MOVE', {'USER': self.parent.user.user, 'SRC': parameters[0], 'TARGET': parameters[1]})
         return 1
 
     def TYPE(self, parameters):
@@ -588,6 +615,7 @@ class commandHandler():
             return 0
         folder = wiredfiles.wiredFiles(self.parent)
         folder.setFolderType(parameters[0], parameters[1])
+        self.wiredlog.log_event('TYPE', {'USER': self.parent.user.user, 'NAME': parameters[0], 'TYPE': parameters[1]})
         return 1
 
     def COMMENT(self, parameters):
@@ -599,6 +627,7 @@ class commandHandler():
             # send error here
             self.logger.error("server failed to save comment for file %s", parameters[0])
             return 0
+        self.wiredlog.log_event('COMMENT', {'USER': self.parent.user.user, 'NAME': parameters[0], 'COMMENT': parameters[1]})
         return 1
 
     def FOLDER(self, parameters):
@@ -616,6 +645,7 @@ class commandHandler():
             # send error here
             self.logger.error("server failed to create folder %s", parameters[0])
             return 0
+        self.wiredlog.log_event('FOLDER', {'USER': self.parent.user.user, 'NAME': parameters[0], 'TYPE': type})
         return 1
 
     def GET(self, parameters):
@@ -695,6 +725,7 @@ class commandHandler():
                 wiredfunctions.wiredTime(aresult[3]) + chr(28) + wiredfunctions.wiredTime(aresult[4]) + chr(4)
                 self.parent.sendData(data)
         self.parent.sendData("421 Done" + chr(4))
+        self.wiredlog.log_event('SEARCH', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick, 'SEARCH': parameters[0]})
         return 1
 
     def serverInfo(self, proto=1.1):
