@@ -58,7 +58,7 @@ class wiredTracker(threading.Thread):
                     time.sleep(1)
         self.disconnectTCPSocket()
 
-        while self.registered and self.keepalive:
+        while self.keepalive:
             if time.time() >= self.nextUpdate:
                 self.updateInfo()
                 self.updateTracker()
