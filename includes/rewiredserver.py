@@ -51,14 +51,10 @@ class reWiredServer():
         self.users.loadUserDB()
         self.indexer = wiredindex.wiredIndex(self)
         self.indexer.start()
-        print "init Tracker"
-        print self.config['trackerUrl']
         if self.config['trackerUrl']:
-            trackers = self.config['trackerUrl'].split(',')
-            for aTracker in trackers:
-                aTracker = wiredtracker.wiredTracker(self, aTracker.strip())
-                aTracker.start()
-                self.tracker.append(aTracker)
+            self.initTrackers()
+            self.logger.debug("%s tracker threads started", len(self.tracker))
+
         # create listening sockets
         self.commandSock = self.open_command_socket()
         self.transferSock = self.open_transfer_socket()
@@ -142,6 +138,7 @@ class reWiredServer():
     def houseKeeping(self):
         if not self.keeprunning:
             return 0  # server is about to shutdown. don't interfere
+        self.checkTracker()
         self.cleantimer = threading.Timer(60.0, self.houseKeeping)  # call ourself again in 60 seconds
         self.cleantimer.start()
         if self.indexer.sizeChanged:    # the indexer messaged that the server info changed
@@ -234,3 +231,30 @@ class reWiredServer():
         self.tracker = wiredtracker.wiredTracker(self)
         self.tracker.start()
         return 1
+
+    def initTrackers(self):
+        trackers = self.getTrackers()
+        for aTracker in trackers:
+            aTracker = wiredtracker.wiredTracker(self, aTracker)
+            aTracker.start()
+            self.tracker.append(aTracker)
+        return 1
+
+    def getTrackers(self):
+        clean = []
+        trackers = self.config['trackerUrl'].split(',')
+        for atracker in trackers:
+            clean.append(atracker.strip())
+        return clean
+
+    def checkTracker(self):
+        trackers = self.getTrackers()
+        if trackers:
+            if not len(self.tracker) == len(trackers):
+                for atracker in trackers:
+                    if not atracker in self.tracker:
+                        self.logger.error("%s: thread died... restarting", atracker)
+                        newtracker = wiredtracker.wiredTracker(self, atracker)
+                        newtracker.start()
+                        self.tracker.append(newtracker)
+                        continue
