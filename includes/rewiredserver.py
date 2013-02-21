@@ -269,11 +269,14 @@ class reWiredServer():
     def checkTracker(self):
         trackers = self.getTrackers()
         if trackers:
-            if not len(self.tracker) == len(trackers):
-                for atracker in trackers:
-                    if not atracker in self.tracker:
-                        self.logger.error("%s: thread died... restarting", atracker)
-                        newtracker = wiredtracker.wiredTracker(self, atracker)
+            for key, atracker in enumerate(self.tracker):
+                    if not atracker.isAlive():
+                        name = atracker.name
+                        self.tracker[key].join()
+                        self.tracker.pop(key)
+                        self.logger.error("%s: thread died... restarting", name)
+                        newtracker = wiredtracker.wiredTracker(self, name)
                         newtracker.start()
                         self.tracker.append(newtracker)
-                        continue
+
+        #self.logger.debug('Tracker threads: %s', len(self.tracker))
