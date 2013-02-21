@@ -36,6 +36,7 @@ class reWiredServer():
         self.tracker = []
         self.transferqueue = {}
         self.binpath = path[0] + sep
+        self.threadDebugtimer = 0
         if not self.configfile:
             self.configfile = self.binpath + "server.conf"
 
@@ -56,8 +57,11 @@ class reWiredServer():
             self.logger.debug("%s tracker threads started", len(self.tracker))
 
         # create listening sockets
-        self.commandSock = self.open_command_socket()
-        self.transferSock = self.open_transfer_socket()
+        try:
+            self.commandSock = self.open_command_socket()
+            self.transferSock = self.open_transfer_socket()
+        except:
+            pass
         self.houseKeeping()
         self.threadDebug()
         return 1
@@ -95,15 +99,17 @@ class reWiredServer():
             pass
         logging.shutdown()
 
-    def serverShutdown(self, signum, frame):
+    def serverShutdown(self, signum=None, frame=None):
         #global clients, transferqueue, indexer, db, tracker, keeprunning, logger, config
         self.logger.info("Got signal: %s.Starting server shutdown", signum)
         # shutdown the server
         self.keeprunning = 0
-        self.cleantimer.cancel()
-        self.cleantimer.join()
-        self.threadDebugtimer.cancel()
-        self.threadDebugtimer.join()
+        if self.cleantimer:
+            self.cleantimer.cancel()
+            self.cleantimer.join()
+        if self.threadDebugtimer:
+            self.threadDebugtimer.cancel()
+            self.threadDebugtimer.join()
         for key, aclient in self.clients.items():
             self.lock.acquire()
             try:
@@ -117,12 +123,15 @@ class reWiredServer():
             atransfer.shutdown = 1
             atransfer.parent.socket.shutdown(socket.SHUT_RDWR)
             atransfer.parent.lock.release()
-        self.indexer.keepalive = 0
+        if self.indexer:
+            self.indexer.keepalive = 0
         if self.tracker:
             for atracker in self.tracker:
                 atracker.keepalive = 0
-        self.commandSock.close()
-        self.transferSock.close()
+        if hasattr(self, 'commandSock'):
+            self.commandSock.close()
+        if hasattr(self, 'transferSock'):
+            self.transferSock.close()
         wiredfunctions.removePID(self.config)
         try:
             for ahandler in self.logger.handlers:
@@ -189,39 +198,49 @@ class reWiredServer():
         return 1
 
     def open_command_socket(self):
-        if socket.has_ipv6 and not wiredfunctions.checkPlatform("Windows"):
-            self.logger.debug("Command socket is ipv6 capable")
-            sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(("::", self.config['port']))
-        else:
-            self.logger.debug("Command socket is only capable of ipv4")
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind((self.config['host'], self.config['port']))
-        sock.listen(4)
-        if not ssl.RAND_status():
-            self.logger.error("Warning: not enough random seed available!")
-            ssl.RAND_add(str(time()), time() * time())
-        sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
-                               keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
-        return sock
+        try:
+            if socket.has_ipv6 and not wiredfunctions.checkPlatform("Windows"):
+                self.logger.debug("Command socket is ipv6 capable")
+                sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind(("::", self.config['port']))
+            else:
+                self.logger.debug("Command socket is only capable of ipv4")
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind((self.config['host'], self.config['port']))
+            sock.listen(4)
+            if not ssl.RAND_status():
+                self.logger.error("Warning: not enough random seed available!")
+                ssl.RAND_add(str(time()), time() * time())
+            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
+                                   keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
+            return sock
+        except:
+                self.logger.error("Can't bind to Port %s. Make sure it's not in use", self.config['port'])
+                self.serverShutdown()
+                system.exit()
 
     def open_transfer_socket(self):
-        if socket.has_ipv6 and not wiredfunctions.checkPlatform("Windows"):
-            self.logger.debug("Transfer socket is ipv6 capable")
-            sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(("::", (int(self.config['port']) + 1)))
-        else:
-            self.logger.debug("Transfer socket is only capable of ipv4")
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind((self.config['host'], (int(self.config['port']) + 1)))
-        sock.listen(4)
-        sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
-                               keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
-        return sock
+        try:
+            if socket.has_ipv6 and not wiredfunctions.checkPlatform("Windows"):
+                self.logger.debug("Transfer socket is ipv6 capable")
+                sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind(("::", (int(self.config['port']) + 1)))
+            else:
+                self.logger.debug("Transfer socket is only capable of ipv4")
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind((self.config['host'], (int(self.config['port']) + 1)))
+            sock.listen(4)
+            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
+                                   keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
+            return sock
+        except:
+            self.logger.error("Can't bind to Port %s. Make sure it's not in use", self.config['port'] + 1)
+            self.serverShutdown()
+            system.exit()
 
     def restartTracker(self, signum, frame):
         self.logger.info("Restarting tracker thread...")
