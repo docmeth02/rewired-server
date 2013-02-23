@@ -147,10 +147,16 @@ class reWiredServer():
             self.indexer.sizeChanged = 0
             self.indexer.lock.release()
 
-        # check for zombies
+        # check for zombies and idle users
         for aid, aclient in self.clients.items():
+            if aclient.user.checkIdleNotify():
+                aclient.handler.notifyAll("304 " + str(aclient.user.buildStatusChanged()) + chr(4))
+                self.lock.acquire()
+                aclient.user.knownIdle = 1
+                self.lock.release()
+
             if not aclient.is_alive() or aclient.lastPing <= (time() - 300):
-                if int(aclient.lastActive) + 300 > time() and aclient.is_alive():  # This user does not send ping, but is still active
+                if float(aclient.lastActive) + 300 > time() and aclient.is_alive():  # This user does not send ping, but is still active
                     self.logger.info("userid %s: no ping for %s secs, but still active!", aid, (time() - aclient.lastPing))
                     continue
 

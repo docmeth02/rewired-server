@@ -244,12 +244,6 @@ class commandHandler():
     def PING(self, parameters):
         self.parent.sendData('202 PONG' + chr(4))
         self.parent.lastPing = time.time()
-        # while we're active check the idle time for this user
-        if self.parent.user.checkIdleNotify():
-            # enter idle state
-            data = "304 " + str(self.parent.user.buildStatusChanged()) + chr(4)
-            self.notifyAll(data)
-            self.parent.user.knownIdle = 1
         return 1
 
     def PRIVCHAT(self, parameters):
