@@ -52,7 +52,7 @@ class reWiredServer():
         self.users.loadUserDB()
         self.indexer = wiredindex.wiredIndex(self)
         self.indexer.start()
-        if self.config['trackerUrl']:
+        if self.config['trackerUrl'] and self.config['trackerRegister']:
             self.initTrackers()
             self.logger.debug("%s tracker threads started", len(self.tracker))
 
@@ -271,7 +271,7 @@ class reWiredServer():
 
     def checkTracker(self):
         trackers = self.getTrackers()
-        if trackers:
+        if trackers and self.config['trackerRegister']:
             for key, atracker in enumerate(self.tracker):
                     if not atracker.isAlive():
                         name = atracker.name
