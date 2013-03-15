@@ -73,8 +73,7 @@ class commandHandler():
             return 0
         if self.parent.user.loginDone:
             # qwired will try to relogin on an already established connection:
-            self.parent.sendData('201 ' + str(self.parent.user.id) + chr(4))
-            self.logger.info("Qwired reconnect fix 1")
+            self.logger.info("Ignoring reconnect try on already established link for user %s", self.parent.user.user)
             return 1
         self.parent.user.id = self.parent.getGlobalUserID()  # get ourself a shiny new userid
         if user[2]:  # group member
@@ -245,12 +244,6 @@ class commandHandler():
     def PING(self, parameters):
         self.parent.sendData('202 PONG' + chr(4))
         self.parent.lastPing = time.time()
-        # while we're active check the idle time for this user
-        if self.parent.user.checkIdleNotify():
-            # enter idle state
-            data = "304 " + str(self.parent.user.buildStatusChanged()) + chr(4)
-            self.notifyAll(data)
-            self.parent.user.knownIdle = 1
         return 1
 
     def PRIVCHAT(self, parameters):

@@ -52,7 +52,7 @@ class reWiredServer():
         self.users.loadUserDB()
         self.indexer = wiredindex.wiredIndex(self)
         self.indexer.start()
-        if self.config['trackerUrl']:
+        if self.config['trackerUrl'] and self.config['trackerRegister']:
             self.initTrackers()
             self.logger.debug("%s tracker threads started", len(self.tracker))
 
@@ -165,10 +165,15 @@ class reWiredServer():
         #check for index cache usage here
         self.indexer.pruneQueryCache()
 
-        # check for zombies
         for aid, aclient in self.clients.items():
+            if aclient.user.checkIdleNotify():
+                aclient.handler.notifyAll("304 " + str(aclient.user.buildStatusChanged()) + chr(4))
+                self.lock.acquire()
+                aclient.user.knownIdle = 1
+                self.lock.release()
+
             if not aclient.is_alive() or aclient.lastPing <= (time() - 300):
-                if int(aclient.lastActive) + 300 > time() and aclient.is_alive():  # This user does not send ping, but is still active
+                if float(aclient.lastActive) + 300 > time() and aclient.is_alive():  # This user does not send ping, but is still active
                     self.logger.info("userid %s: no ping for %s secs, but still active!", aid, (time() - aclient.lastPing))
                     continue
 
@@ -240,15 +245,17 @@ class reWiredServer():
             system.exit()
 
     def restartTracker(self, signum, frame):
-        self.logger.info("Restarting tracker thread...")
-        try:
-            self.tracker.keepalive = 0
-            self.tracker.join(5)
-            del self.tracker
-        except:
-            pass
-        self.tracker = wiredtracker.wiredTracker(self)
-        self.tracker.start()
+        self.logger.info("Restarting tracker threads...")
+        for atracker in self.tracker:
+            atracker.keepalive = 0
+
+        for key, atracker in enumerate(self.tracker):
+            self.tracker[key].join(5)
+            del(self.tracker[key])
+
+        self.tracker = []  # make sure its empty
+
+        self.initTrackers()
         return 1
 
     def initTrackers(self):
@@ -268,7 +275,7 @@ class reWiredServer():
 
     def checkTracker(self):
         trackers = self.getTrackers()
-        if trackers:
+        if trackers and self.config['trackerRegister']:
             for key, atracker in enumerate(self.tracker):
                     if not atracker.isAlive():
                         name = atracker.name

@@ -303,10 +303,8 @@ class LISTgetter(threading.Thread):
         self.config = self.parent.config
         self.path = path
         self.sink = datasink
-        self.logger.debug("INIT LISTgetter Thread")
 
     def run(self):
-        self.logger.debug("RUN LISTgetter Thread")
         files = wiredFiles(self)
         if files.isDropBox(self.path) and not self.user.checkPrivs("viewDropboxes"):
             # send empty result for this dropbox
@@ -330,7 +328,6 @@ class LISTgetter(threading.Thread):
                                 wiredfunctions.wiredTime(aitem['modified']) + chr(4))
         spaceAvail = files.spaceAvail(self.path)
         self.sink('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
-        self.logger.debug("DONE LISTgetter Thread")
         self.shutdown()
 
     def shutdown(self):
@@ -375,4 +372,3 @@ class LISTRECURSIVEgetter(threading.Thread):
     def shutdown(self):
         self.logger.debug("EXIT LISTRECURSIVEgetter Thread")
         sys.exit()
-

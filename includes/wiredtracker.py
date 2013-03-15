@@ -61,7 +61,7 @@ class wiredTracker(threading.Thread):
                     time.sleep(1)
         self.disconnectTCPSocket()
 
-        while self.registered and self.keepalive:
+        while self.keepalive:
             if time.time() >= self.nextUpdate:
                 self.updateInfo()
                 self.updateTracker()
@@ -71,6 +71,7 @@ class wiredTracker(threading.Thread):
                 self.logger.debug("Refreshing tracker registration")
                 self.updateRegistration()
                 self.regrefresh = time.time() + 3600  # 60 minutes
+                self.nextUpdate = time.time() + 60
                 self.logger.debug("Refresh successful!")
 
             time.sleep(1)
@@ -102,14 +103,16 @@ class wiredTracker(threading.Thread):
             return 0
         try:
             self.tlssock.write("HELLO" + chr(4))
-            response = self.tlssock.read()
+            response = self.tlssock.recv(4096)
             if int(response[:3]) != 200:
                 self.logger.error("Invalid response to HELLO command from tracker %s", self.tracker)
+                return 0
+            if not self.keepalive:
                 return 0
             self.logger.debug("Connected to tracker %s", self.tracker)
             self.tlssock.write("REGISTER " + str(self.category) + chr(28) + str(self.uri) + chr(28) + str(self.servername)\
                                + chr(28) + str(self.bandwidth) + chr(28) + str(self.desc) + chr(4))
-            response = self.tlssock.read()
+            response = self.tlssock.recv(8096)
             if int(response[:3]) != 700:
                 self.logger.error("Error registering to tracker %s", self.tracker)
                 return 0
