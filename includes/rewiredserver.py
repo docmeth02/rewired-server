@@ -171,10 +171,6 @@ class reWiredServer():
                 self.lock.release()
 
             if not aclient.is_alive() or aclient.lastPing <= (time() - 300):
-                if float(aclient.lastActive) + 300 > time() and aclient.is_alive():  # This user does not send ping, but is still active
-                    self.logger.info("userid %s: no ping for %s secs, but still active!", aid, (time() - aclient.lastPing))
-                    continue
-
                 self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",\
                                   aid, (time() - aclient.lastPing))
                 try:
