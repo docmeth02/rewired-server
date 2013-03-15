@@ -243,15 +243,17 @@ class reWiredServer():
             system.exit()
 
     def restartTracker(self, signum, frame):
-        self.logger.info("Restarting tracker thread...")
-        try:
-            self.tracker.keepalive = 0
-            self.tracker.join(5)
-            del self.tracker
-        except:
-            pass
-        self.tracker = wiredtracker.wiredTracker(self)
-        self.tracker.start()
+        self.logger.info("Restarting tracker threads...")
+        for atracker in self.tracker:
+            atracker.keepalive = 0
+
+        for key, atracker in enumerate(self.tracker):
+            self.tracker[key].join(5)
+            del(self.tracker[key])
+
+        self.tracker = []  # make sure its empty
+
+        self.initTrackers()
         return 1
 
     def initTrackers(self):
