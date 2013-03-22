@@ -297,6 +297,7 @@ class LISTgetter(threading.Thread):
 
     def run(self):
         files = wiredFiles(self)
+        data =""
         if files.isDropBox(self.path) and not self.user.checkPrivs("viewDropboxes"):
             # send empty result for this dropbox
             self.logger.debug("no access to dropbox %s", self.path)
@@ -314,11 +315,13 @@ class LISTgetter(threading.Thread):
             ftype = 0
             if aitem['type'] == 'dir':
                 ftype = files.getFolderType(dirpath)
-            self.sink('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) + str(aitem['size']) +\
+            data += ('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) + str(aitem['size']) +\
                                 chr(28) + wiredfunctions.wiredTime(aitem['created']) + chr(28) +\
                                 wiredfunctions.wiredTime(aitem['modified']) + chr(4))
         spaceAvail = files.spaceAvail(self.path)
-        self.sink('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
+        data += ('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
+        if data:
+            self.sink(data)
         self.shutdown()
 
     def shutdown(self):
@@ -337,11 +340,11 @@ class LISTRECURSIVEgetter(threading.Thread):
         self.config = self.parent.config
         self.path = path
         self.sink = datasink
-        self.logger.debug("INIT LISTRECURSIVEgetter Thread")
 
     def run(self):
         files = wiredFiles(self)
         filelist = files.getRecursiveDirList(self.path)
+        data = ""
         if not type(filelist) is list:
             self.logger.error("invalid value in LISTRECURSIVEgetter for %s", self.path)
             self.parent.reject(520)
@@ -352,12 +355,14 @@ class LISTRECURSIVEgetter(threading.Thread):
                 ftype = 0
                 if aitem['type'] == 'dir':
                     ftype = files.getFolderType(dirpath)
-                self.sink('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) +\
+                data += ('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) +\
                                     str(aitem['size']) + chr(28) + wiredfunctions.wiredTime(aitem['created']) +\
                                     chr(28) + wiredfunctions.wiredTime(aitem['modified']) + chr(4))
 
         spaceAvail = files.spaceAvail(self.path)
-        self.sink('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
+        data += ('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
+        if data:
+         self.sink(data)
         self.shutdown()
 
     def shutdown(self):
