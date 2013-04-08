@@ -265,9 +265,10 @@ class wiredFiles():
             return 0
         return stat.f_frsize * stat.f_bavail
 
-    def simpleDirList(self, dir, cached=True):
+    def simpleDirList(self, dir, cached=True, relative=True):
         path = dir
-        dir = str(self.rootpath) + str(dir)
+        if relative:
+            dir = str(self.rootpath) + str(dir)
         filelist = []
         list = 0
         if cached:

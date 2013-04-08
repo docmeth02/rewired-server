@@ -38,8 +38,8 @@ class commandServer(threading.Thread):
             self.user.host = ""
         self.id = 0
         self.handler = commandHandler(self)
-        self.serverSize = self.parent.indexer.size
-        self.serverFiles = self.parent.indexer.files
+        self.serverSize = self.indexer.size
+        self.serverFiles = self.indexer.files
         self.lastPing = time.time()
 
     def run(self):
@@ -282,7 +282,10 @@ class commandServer(threading.Thread):
 
     def doSearch(self, searchString):
         self.lock.acquire()
-        result = self.parent.indexer.searchIndex(searchString)
+        try:
+            result = self.indexer.searchIndex(searchString)
+        except:
+            self.logger.error("Failed to process search for term %s", searchString)
         self.lock.release()
         return result
 

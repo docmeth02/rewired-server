@@ -13,6 +13,7 @@ class commandHandler():
         self.parent = parent
         self.logger = parent.logger
         self.config = self.parent.config
+        self.indexer = self.parent.indexer
 
     def HELLO(self, parameters):
         if parameters:
@@ -114,9 +115,9 @@ class commandHandler():
                     ip = aclient.user.ip
                     host = aclient.user.host
                 response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) + str(aclient.user.idle) +\
-                chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
-                str(aclient.user.nick) + chr(28) + str(aclient.user.user) + chr(28) + str(ip) + chr(28) +\
-                str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
+                    chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
+                    str(aclient.user.nick) + chr(28) + str(aclient.user.user) + chr(28) + str(ip) + chr(28) +\
+                    str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
                 self.parent.sendData(response)
 
         self.parent.sendData('311 ' + str(chatid) + chr(4))  # send userlist done
@@ -238,7 +239,7 @@ class commandHandler():
             self.logger.error("Invalid parameters in getTopic")
             return 0
         data = '341 ' + str(chat) + chr(28) + str(nick) + chr(28) + str(login) + chr(28) +\
-        str(ip) + chr(28) + str(topictime) + chr(28) + str(topic) + chr(4)
+            str(ip) + chr(28) + str(topictime) + chr(28) + str(topic) + chr(4)
         return data
 
     def PING(self, parameters):
@@ -307,8 +308,8 @@ class commandHandler():
                 if aclient.user.checkPrivs("cannotBeKicked"):
                     self.reject(515)
                     return 0
-                self.notifyAll("306 " + str(parameters[0]) + chr(28) + str(self.parent.id) +\
-                chr(28) + str(parameters[1]) + chr(4))
+                self.notifyAll("306 " + str(parameters[0]) + chr(28) + str(self.parent.id) +
+                               chr(28) + str(parameters[1]) + chr(4))
                 self.parent.parent.lock.acquire()
                 try:
                     aclient.shutdown = 1
@@ -345,7 +346,7 @@ class commandHandler():
                 if aclient.user.checkPrivs("cannotBeKicked"):
                     self.reject(515)
                     return 0
-                self.parent.banUser(aclient.user.user, aclient.user.nick, aclient.user.ip,\
+                self.parent.banUser(aclient.user.user, aclient.user.nick, aclient.user.ip,
                                     float(time.time() + (int(duration) * 60)))
                 self.notifyAll('307 ' + str(aclient.id) + chr(28) + str(self.parent.id) + chr(28) + str(msg) + chr(4))
 
@@ -420,7 +421,7 @@ class commandHandler():
         users = self.parent.getUsers()
         for auser in users:
             if str(auser[0]) == str(parameters[0]):
-                self.parent.sendData("600 " + str(auser[0]) + chr(28) + str(auser[1]) + chr(28) +\
+                self.parent.sendData("600 " + str(auser[0]) + chr(28) + str(auser[1]) + chr(28) +
                                      str(auser[2]) + chr(28) + str(auser[4]) + chr(4))
                 return 1
         return 0
@@ -508,9 +509,9 @@ class commandHandler():
         if filelist['type'] == 'dir':
             ftype = files.getFolderType(parameters[0])
         response = "402 " + str(filelist['name']) + chr(28) + str(ftype) + chr(28) + str(filelist['size']) +\
-        chr(28) + wiredfunctions.wiredTime(filelist['created']) + chr(28) +\
-        wiredfunctions.wiredTime(filelist['modified']) + chr(28) + str(filelist['hash']) +\
-        chr(28) + str(comment) + chr(4)
+            chr(28) + wiredfunctions.wiredTime(filelist['created']) + chr(28) +\
+            wiredfunctions.wiredTime(filelist['modified']) + chr(28) + str(filelist['hash']) +\
+            chr(28) + str(comment) + chr(4)
         self.parent.sendData(response)
         return 1
 
@@ -637,7 +638,7 @@ class commandHandler():
                 if aresult[1] == "dir":
                     type = 1
                     size = wiredfiles.wiredFiles(self)
-                    size = size.simpleDirList(str(self.config['fileRoot']) + str(aresult[0]))
+                    size = size.simpleDirList(str(self.config['fileRoot']) + str(aresult[0]), relative=False)
                     if size:
                         size = len(size)
                     else:
@@ -646,7 +647,7 @@ class commandHandler():
                     type = 0
                     size = aresult[2]
                 data = "420 " + str(aresult[0]) + chr(28) + str(type) + chr(28) + str(size) + chr(28) +\
-                wiredfunctions.wiredTime(aresult[3]) + chr(28) + wiredfunctions.wiredTime(aresult[4]) + chr(4)
+                    wiredfunctions.wiredTime(aresult[3]) + chr(28) + wiredfunctions.wiredTime(aresult[4]) + chr(4)
                 self.parent.sendData(data)
         self.parent.sendData("421 Done" + chr(4))
         return 1
@@ -656,10 +657,10 @@ class commandHandler():
         platform = wiredfunctions.getPlatform()
         serverstart = wiredfunctions.wiredTime(str(self.parent.config['serverStarted']))
         msg = "200 " + str(self.parent.config['appName']) + "/" + str(self.parent.config['appVersion']) +\
-        " (" + platform['OS'] + "; " + str(platform['OSVersion']) + "; " + platform['ARCH'] + ") (" +\
-        platform['TLSLib'] + ')' + chr(28) + str(self.parent.protoVersion) + chr(28) +\
-        (self.parent.config['serverName']) + chr(28) + str(self.parent.config['serverDesc']) + chr(28) +\
-        serverstart + chr(28) + str(self.parent.serverFiles) + chr(28) + str(self.parent.serverSize) + chr(4)
+            " (" + platform['OS'] + "; " + str(platform['OSVersion']) + "; " + platform['ARCH'] + ") (" +\
+            platform['TLSLib'] + ')' + chr(28) + str(self.parent.protoVersion) + chr(28) +\
+            (self.parent.config['serverName']) + chr(28) + str(self.parent.config['serverDesc']) + chr(28) +\
+            serverstart + chr(28) + str(self.parent.serverFiles) + chr(28) + str(self.parent.serverSize) + chr(4)
         return msg
 
     ## Data handling ##

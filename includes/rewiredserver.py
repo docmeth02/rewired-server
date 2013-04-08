@@ -290,5 +290,7 @@ class reWiredServer():
             self.indexer = wiredindex.wiredIndex(self)
             self.indexer.start()
             return 0
+        else:
+            print "ALL GOOD!"
         return 1
 
