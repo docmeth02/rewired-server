@@ -14,6 +14,7 @@ class commandHandler():
         self.logger = parent.logger
         self.wiredlog = parent.wiredlog
         self.config = self.parent.config
+        self.indexer = self.parent.indexer
 
     def HELLO(self, parameters):
         if parameters:
@@ -78,9 +79,7 @@ class commandHandler():
             return 0
         if self.parent.user.loginDone:
             # qwired will try to relogin on an already established connection:
-            self.parent.sendData('510 Login Failed' + chr(4))
-            #self.parent.sendData('201 '+str(self.parent.user.id)+chr(4))
-            self.logger.info("Qwired reconnect fix 1")
+            self.logger.info("Ignoring reconnect try on already established link for user %s", self.parent.user.user)
             return 1
         self.parent.user.id = self.parent.getGlobalUserID()  # get ourself a shiny new userid
         if user[2]:  # group member
@@ -106,27 +105,28 @@ class commandHandler():
     def WHO(self, parameters):
         chatid = int(parameters[0])
         clients = self.parent.getUserList()
-        self.parent.parent.lock.acquire()
+        userlist = {}
+
         for aid, aclient in clients.items():
-            # add user is in chat check
             try:
                 check = aclient.user.activeChats[int(chatid)]
             except KeyError:
-                check = 0
-            if check:
+                continue
+            userlist[aclient.user.activeChats[int(chatid)]] = aclient
+
+        for aid, aclient in sorted(userlist.items(), key=lambda x: x):
                 ip = ""
                 host = ""
                 if self.parent.user.checkPrivs("getUserInfo"):
                     ip = aclient.user.ip
                     host = aclient.user.host
                 response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) + str(aclient.user.idle) +\
-                chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
-                str(aclient.user.nick) + chr(28) + str(aclient.user.user) + chr(28) + str(ip) + chr(28) +\
-                str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
+                    chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
+                    str(aclient.user.nick) + chr(28) + str(aclient.user.user) + chr(28) + str(ip) + chr(28) +\
+                    str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
                 self.parent.sendData(response)
 
         self.parent.sendData('311 ' + str(chatid) + chr(4))  # send userlist done
-        self.parent.parent.lock.release()
         return 1
 
     def INFO(self, parameters):
@@ -253,18 +253,12 @@ class commandHandler():
             self.logger.error("Invalid parameters in getTopic")
             return 0
         data = '341 ' + str(chat) + chr(28) + str(nick) + chr(28) + str(login) + chr(28) +\
-        str(ip) + chr(28) + str(topictime) + chr(28) + str(topic) + chr(4)
+            str(ip) + chr(28) + str(topictime) + chr(28) + str(topic) + chr(4)
         return data
 
     def PING(self, parameters):
         self.parent.sendData('202 PONG' + chr(4))
         self.parent.lastPing = time.time()
-        # while we're active check the idle time for this user
-        if self.parent.user.checkIdleNotify():
-            # enter idle state
-            data = "304 " + str(self.parent.user.buildStatusChanged()) + chr(4)
-            self.notifyAll(data)
-            self.parent.user.knownIdle = 1
         return 1
 
     def PRIVCHAT(self, parameters):
@@ -297,7 +291,7 @@ class commandHandler():
     def joinChat(self, chat):
         clients = self.parent.getUserList()
         userlist = self.parent.user.buildUserList()
-        self.parent.user.activeChats[int(chat)] = 1
+        self.parent.user.activeChats[int(chat)] = time.time()  # time user joined this chat
         self.parent.parent.lock.acquire()
         for aid, aclient in clients.items():
             if aclient.id != self.parent.id and int(chat) in aclient.user.activeChats:
@@ -328,8 +322,8 @@ class commandHandler():
                 if aclient.user.checkPrivs("cannotBeKicked"):
                     self.reject(515)
                     return 0
-                self.notifyAll("306 " + str(parameters[0]) + chr(28) + str(self.parent.id) +\
-                chr(28) + str(parameters[1]) + chr(4))
+                self.notifyAll("306 " + str(parameters[0]) + chr(28) + str(self.parent.id) +
+                               chr(28) + str(parameters[1]) + chr(4))
                 self.parent.parent.lock.acquire()
                 try:
                     aclient.shutdown = 1
@@ -367,7 +361,7 @@ class commandHandler():
                 if aclient.user.checkPrivs("cannotBeKicked"):
                     self.reject(515)
                     return 0
-                self.parent.banUser(aclient.user.user, aclient.user.nick, aclient.user.ip,\
+                self.parent.banUser(aclient.user.user, aclient.user.nick, aclient.user.ip,
                                     float(time.time() + (int(duration) * 60)))
                 self.notifyAll('307 ' + str(aclient.id) + chr(28) + str(self.parent.id) + chr(28) + str(msg) + chr(4))
 
@@ -446,7 +440,7 @@ class commandHandler():
         users = self.parent.getUsers()
         for auser in users:
             if str(auser[0]) == str(parameters[0]):
-                self.parent.sendData("600 " + str(auser[0]) + chr(28) + str(auser[1]) + chr(28) +\
+                self.parent.sendData("600 " + str(auser[0]) + chr(28) + str(auser[1]) + chr(28) +
                                      str(auser[2]) + chr(28) + str(auser[4]) + chr(4))
                 return 1
         return 0
@@ -521,52 +515,13 @@ class commandHandler():
 
     ## Files ##
     def LIST(self, parameters):
-        files = wiredfiles.wiredFiles(self.parent)
-        if files.isDropBox(parameters[0]) and not self.parent.user.checkPrivs("viewDropboxes"):
-            # send empty result for this dropbox
-            self.logger.debug("no access to dropbox %s", parameters[0])
-            spaceAvail = files.spaceAvail(parameters[0])
-            self.parent.sendData('411 ' + str(parameters[0]) + chr(28) + str(spaceAvail) + chr(4))
-            return 1
-
-        filelist = files.getDirList(parameters[0])
-        if not type(filelist) is list:
-            self.logger.error("invalid value in LIST for %s", parameters[0])
-            self.reject(520)
-            return 0
-        for aitem in filelist:
-            path = os.path.join(str(parameters[0]), str(aitem['name']))
-            ftype = 0
-            if aitem['type'] == 'dir':
-                ftype = files.getFolderType(path)
-            self.parent.sendData('410 ' + wiredfunctions.normWiredPath(path) + chr(28) + str(ftype) + chr(28) + str(aitem['size']) +\
-                                chr(28) + wiredfunctions.wiredTime(aitem['created']) + chr(28) +\
-                                wiredfunctions.wiredTime(aitem['modified']) + chr(4))
-        spaceAvail = files.spaceAvail(parameters[0])
-        self.parent.sendData('411 ' + str(parameters[0]) + chr(28) + str(spaceAvail) + chr(4))
+        wiredfiles.LISTgetter(self, self.parent.user, self.parent.indexer, parameters[0], self.parent.sendData).start()
         self.wiredlog.log_event('LIST', {'USER': self.parent.user.user, 'DIR': parameters[0]})
-        return 1
+        return 0
 
     def LISTRECURSIVE(self, parameters):
-        files = wiredfiles.wiredFiles(self.parent)
-        filelist = files.getRecursiveDirList(parameters[0])
-        if not type(filelist) is list:
-            self.logger.error("invalid value in LISTRECURSIVE for %s", parameters[0])
-            self.reject(520)
-            return 0
-        if len(filelist) != 0:
-            for aitem in filelist:
-                path = os.path.join(str(parameters[0]), str(aitem['name']))
-                ftype = 0
-                if aitem['type'] == 'dir':
-                    ftype = files.getFolderType(path)
-                self.parent.sendData('410 ' + wiredfunctions.normWiredPath(path) + chr(28) + str(ftype) + chr(28) +\
-                                    str(aitem['size']) + chr(28) + wiredfunctions.wiredTime(aitem['created']) +\
-                                    chr(28) + wiredfunctions.wiredTime(aitem['modified']) + chr(4))
-
-        spaceAvail = files.spaceAvail(parameters[0])
-        self.parent.sendData('411 ' + str(parameters[0]) + chr(28) + str(spaceAvail) + chr(4))
-        return 1
+        wiredfiles.LISTRECURSIVEgetter(self, self.parent.user, self.parent.indexer, parameters[0], self.parent.sendData).start()
+        return 0
 
     def STAT(self, parameters):
         files = wiredfiles.wiredFiles(self.parent)
@@ -578,9 +533,9 @@ class commandHandler():
         if filelist['type'] == 'dir':
             ftype = files.getFolderType(parameters[0])
         response = "402 " + str(filelist['name']) + chr(28) + str(ftype) + chr(28) + str(filelist['size']) +\
-        chr(28) + wiredfunctions.wiredTime(filelist['created']) + chr(28) +\
-        wiredfunctions.wiredTime(filelist['modified']) + chr(28) + str(filelist['hash']) +\
-        chr(28) + str(comment) + chr(4)
+            chr(28) + wiredfunctions.wiredTime(filelist['created']) + chr(28) +\
+            wiredfunctions.wiredTime(filelist['modified']) + chr(28) + str(filelist['hash']) +\
+            chr(28) + str(comment) + chr(4)
         self.parent.sendData(response)
         self.wiredlog.log_event('STAT', {'USER': self.parent.user.user, 'NAME': parameters[0]})
         return 1
@@ -713,7 +668,7 @@ class commandHandler():
                 if aresult[1] == "dir":
                     type = 1
                     size = wiredfiles.wiredFiles(self)
-                    size = size.simpleDirList(str(self.config['fileRoot']) + str(aresult[0]))
+                    size = size.simpleDirList(str(self.config['fileRoot']) + str(aresult[0]), relative=False)
                     if size:
                         size = len(size)
                     else:
@@ -722,7 +677,7 @@ class commandHandler():
                     type = 0
                     size = aresult[2]
                 data = "420 " + str(aresult[0]) + chr(28) + str(type) + chr(28) + str(size) + chr(28) +\
-                wiredfunctions.wiredTime(aresult[3]) + chr(28) + wiredfunctions.wiredTime(aresult[4]) + chr(4)
+                    wiredfunctions.wiredTime(aresult[3]) + chr(28) + wiredfunctions.wiredTime(aresult[4]) + chr(4)
                 self.parent.sendData(data)
         self.parent.sendData("421 Done" + chr(4))
         self.wiredlog.log_event('SEARCH', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick, 'SEARCH': parameters[0]})
@@ -733,10 +688,10 @@ class commandHandler():
         platform = wiredfunctions.getPlatform()
         serverstart = wiredfunctions.wiredTime(str(self.parent.config['serverStarted']))
         msg = "200 " + str(self.parent.config['appName']) + "/" + str(self.parent.config['appVersion']) +\
-        " (" + platform['OS'] + "; " + str(platform['OSVersion']) + "; " + platform['ARCH'] + ") (" +\
-        platform['TLSLib'] + ')' + chr(28) + str(self.parent.protoVersion) + chr(28) +\
-        (self.parent.config['serverName']) + chr(28) + str(self.parent.config['serverDesc']) + chr(28) +\
-        serverstart + chr(28) + str(self.parent.serverFiles) + chr(28) + str(self.parent.serverSize) + chr(4)
+            " (" + platform['OS'] + "; " + str(platform['OSVersion']) + "; " + platform['ARCH'] + ") (" +\
+            platform['TLSLib'] + ')' + chr(28) + str(self.parent.protoVersion) + chr(28) +\
+            (self.parent.config['serverName']) + chr(28) + str(self.parent.config['serverDesc']) + chr(28) +\
+            serverstart + chr(28) + str(self.parent.serverFiles) + chr(28) + str(self.parent.serverSize) + chr(4)
         return msg
 
     ## Data handling ##

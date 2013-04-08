@@ -34,8 +34,10 @@ class reWiredServer():
         self.globalPrivateChatID = 1
         self.clients = {}
         self.topics = {}
+        self.tracker = []
         self.transferqueue = {}
         self.binpath = path[0] + sep
+        self.threadDebugtimer = 0
         if not self.configfile:
             self.configfile = self.binpath + "server.conf"
 
@@ -52,11 +54,16 @@ class reWiredServer():
         self.users.loadUserDB()
         self.indexer = wiredindex.wiredIndex(self)
         self.indexer.start()
-        self.tracker = wiredtracker.wiredTracker(self)
-        self.tracker.start()
+        if self.config['trackerUrl'] and self.config['trackerRegister']:
+            self.initTrackers()
+            self.logger.debug("%s tracker threads started", len(self.tracker))
+
         # create listening sockets
-        self.commandSock = self.open_command_socket()
-        self.transferSock = self.open_transfer_socket()
+        try:
+            self.commandSock = self.open_command_socket()
+            self.transferSock = self.open_transfer_socket()
+        except:
+            pass
         self.houseKeeping()
         self.threadDebug()
         return 1
@@ -94,17 +101,16 @@ class reWiredServer():
             pass
         logging.shutdown()
 
-    def serverShutdown(self, signum, frame):
-        #global clients, transferqueue, indexer, db, tracker, keeprunning, logger, config
+    def serverShutdown(self, signum=None, frame=None):
         self.logger.info("Got signal: %s.Starting server shutdown", signum)
         # shutdown the server
         self.keeprunning = 0
-        self.cleantimer.cancel()
-        self.cleantimer.join()
-        self.wiredlog.committimer.cancel()
-        self.wiredlog.committimer.join()
-        self.threadDebugtimer.cancel()
-        self.threadDebugtimer.join()
+        if self.cleantimer:
+            self.cleantimer.cancel()
+            self.cleantimer.join()
+        if self.threadDebugtimer:
+            self.threadDebugtimer.cancel()
+            self.threadDebugtimer.join()
         for key, aclient in self.clients.items():
             self.lock.acquire()
             try:
@@ -118,10 +124,15 @@ class reWiredServer():
             atransfer.shutdown = 1
             atransfer.parent.socket.shutdown(socket.SHUT_RDWR)
             atransfer.parent.lock.release()
-        self.indexer.keepalive = 0
-        self.tracker.keepalive = 0
-        self.commandSock.close()
-        self.transferSock.close()
+        if self.indexer:
+            self.indexer.keepalive = 0
+        if self.tracker:
+            for atracker in self.tracker:
+                atracker.keepalive = 0
+        if hasattr(self, 'commandSock'):
+            self.commandSock.close()
+        if hasattr(self, 'transferSock'):
+            self.transferSock.close()
         wiredfunctions.removePID(self.config)
         try:
             for ahandler in self.logger.handlers:
@@ -139,6 +150,8 @@ class reWiredServer():
             return 0  # server is about to shutdown. don't interfere
         self.cleantimer = threading.Timer(60.0, self.houseKeeping)  # call ourself again in 60 seconds
         self.cleantimer.start()
+        self.checkTracker()
+        self.checkIndexer()
         if self.indexer.sizeChanged:    # the indexer messaged that the server info changed
             self.logger.debug("Server size changed: Sending new server info to all cients")
             for aid, aclient in self.clients.items():  # now update all clients
@@ -151,13 +164,17 @@ class reWiredServer():
             self.indexer.sizeChanged = 0
             self.indexer.lock.release()
 
-        # check for zombies
-        for aid, aclient in self.clients.items():
-            if not aclient.is_alive() or aclient.lastPing <= (time() - 300):
-                if int(aclient.lastActive) + 300 > time() and aclient.is_alive():  # This user does not send ping, but is still active
-                    self.logger.info("userid %s: no ping for %s secs, but still active!", aid, (time() - aclient.lastPing))
-                    continue
+        #check for index cache usage here
+        self.indexer.pruneQueryCache()
 
+        for aid, aclient in self.clients.items():
+            if aclient.user.checkIdleNotify():
+                aclient.handler.notifyAll("304 " + str(aclient.user.buildStatusChanged()) + chr(4))
+                self.lock.acquire()
+                aclient.user.knownIdle = 1
+                self.lock.release()
+
+            if not aclient.is_alive() or aclient.lastPing <= (time() - 300):
                 self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",\
                                   aid, (time() - aclient.lastPing))
                 try:
@@ -181,47 +198,100 @@ class reWiredServer():
         return 1
 
     def open_command_socket(self):
-        if socket.has_ipv6 and not wiredfunctions.checkPlatform("Windows"):
-            self.logger.debug("Command socket is ipv6 capable")
-            sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(("::", self.config['port']))
-        else:
-            self.logger.debug("Command socket is only capable of ipv4")
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind((self.config['host'], self.config['port']))
-        #sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,pack('ii', 1, 0))
-        sock.listen(4)
-        sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
-                               keyfile=str(self.config['cert']))  # , ssl_version=ssl.PROTOCOL_TLSv1)
-        return sock
+        try:
+            if socket.has_ipv6 and not wiredfunctions.checkPlatform("Windows"):
+                self.logger.debug("Command socket is ipv6 capable")
+                sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind(("::", self.config['port']))
+            else:
+                self.logger.debug("Command socket is only capable of ipv4")
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind((self.config['host'], self.config['port']))
+            sock.listen(4)
+            if not ssl.RAND_status():
+                self.logger.error("Warning: not enough random seed available!")
+                ssl.RAND_add(str(time()), time() * time())
+            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
+                                   keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
+            return sock
+        except:
+                self.logger.error("Can't bind to Port %s. Make sure it's not in use", self.config['port'])
+                self.serverShutdown()
+                system.exit()
 
     def open_transfer_socket(self):
-        if socket.has_ipv6 and not wiredfunctions.checkPlatform("Windows"):
-            self.logger.debug("Transfer socket is ipv6 capable")
-            sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(("::", (int(self.config['port']) + 1)))
-        else:
-            self.logger.debug("Transfer socket is only capable of ipv4")
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind((self.config['host'], (int(self.config['port']) + 1)))
-        #sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,pack('ii', 1, 0))
-        sock.listen(4)
-        sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
-                               keyfile=str(self.config['cert']))  # , ssl_version=ssl.PROTOCOL_TLSv1)
-        return sock
+        try:
+            if socket.has_ipv6 and not wiredfunctions.checkPlatform("Windows"):
+                self.logger.debug("Transfer socket is ipv6 capable")
+                sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind(("::", (int(self.config['port']) + 1)))
+            else:
+                self.logger.debug("Transfer socket is only capable of ipv4")
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind((self.config['host'], (int(self.config['port']) + 1)))
+            sock.listen(4)
+            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
+                                   keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
+            return sock
+        except:
+            self.logger.error("Can't bind to Port %s. Make sure it's not in use", self.config['port'] + 1)
+            self.serverShutdown()
+            system.exit()
 
     def restartTracker(self, signum, frame):
-        self.logger.info("Restarting tracker thread...")
-        try:
-            self.tracker.keepalive = 0
-            self.tracker.join(5)
-            del self.tracker
-        except:
-            pass
-        self.tracker = wiredtracker.wiredTracker(self)
-        self.tracker.start()
+        self.logger.info("Restarting tracker threads...")
+        for atracker in self.tracker:
+            atracker.keepalive = 0
+
+        for key, atracker in enumerate(self.tracker):
+            self.tracker[key].join(5)
+            del(self.tracker[key])
+
+        self.tracker = []  # make sure its empty
+
+        self.initTrackers()
+        return 1
+
+    def initTrackers(self):
+        trackers = self.getTrackers()
+        for aTracker in trackers:
+            aTracker = wiredtracker.wiredTracker(self, aTracker)
+            aTracker.start()
+            self.tracker.append(aTracker)
+        return 1
+
+    def getTrackers(self):
+        clean = []
+        trackers = self.config['trackerUrl'].split(',')
+        for atracker in trackers:
+            clean.append(atracker.strip())
+        return clean
+
+    def checkTracker(self):
+        trackers = self.getTrackers()
+        if trackers and self.config['trackerRegister']:
+            for key, atracker in enumerate(self.tracker):
+                    if not atracker.isAlive():
+                        name = atracker.name
+                        self.tracker[key].join()
+                        self.tracker.pop(key)
+                        self.logger.error("%s: thread died... restarting", name)
+                        newtracker = wiredtracker.wiredTracker(self, name)
+                        newtracker.start()
+                        self.tracker.append(newtracker)
+
+    def checkIndexer(self):
+        if not self.indexer.isAlive():
+            print "Indexer died on us!"
+            self.indexer.join(5)
+            del self.indexer
+            self.indexer = wiredindex.wiredIndex(self)
+            self.indexer.start()
+            return 0
+        else:
+            print "ALL GOOD!"
         return 1

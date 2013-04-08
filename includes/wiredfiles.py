@@ -1,7 +1,10 @@
 import os
+import sys
 import shutil
 import hashlib
 import diskusage
+import threading
+import wiredfunctions
 
 
 class wiredFiles():
@@ -19,13 +22,13 @@ class wiredFiles():
         hash = ""
         if os.path.isdir(targetpath):
             type = "dir"
-            subdir = self.simpleDirList(targetpath)
+            subdir = self.simpleDirList(target)
             size = len(subdir)
         if os.path.isfile(targetpath):
             size = stat.st_size
             type = "file"
             hash = self.hashFile(targetpath)
-        return {"name": target, "type": type, "hash": str(hash), "size": size, \
+        return {"name": target, "type": type, "hash": str(hash), "size": size,
                 "modified": stat.st_mtime, "created": stat.st_ctime}
 
     def hashFile(self, target):
@@ -64,7 +67,7 @@ class wiredFiles():
             return 0
         if os.path.exists(os.path.join(target, ".wired_upload_folder")):
             return 2
-        if  os.path.exists(os.path.join(target, ".wired_drop_box")):
+        if os.path.exists(os.path.join(target, ".wired_drop_box")):
             return 3
         return 1
 
@@ -109,6 +112,7 @@ class wiredFiles():
         return 0
 
     def getDirList(self, dir):
+        path = dir
         dir = str(self.rootpath) + str(dir)
         data = []
         try:
@@ -120,16 +124,16 @@ class wiredFiles():
                 continue
             if os.path.isdir(os.path.join(dir, aitem)):
                 stat = os.stat(os.path.join(dir, aitem))
-                subdir = self.simpleDirList(os.path.join(dir, aitem))
+                subdir = self.simpleDirList(os.path.join(path, aitem))
                 if subdir:
                     size = len(subdir)
                 else:
                     size = 0
-                data.append({"name": aitem, "type": "dir", "size": size, "modified":\
+                data.append({"name": aitem, "type": "dir", "size": size, "modified":
                              stat.st_mtime, "created": stat.st_ctime})
             if os.path.isfile(os.path.join(dir, aitem)):
                 stat = os.stat(os.path.join(dir, aitem))
-                data.append({"name": aitem, "type": "file", "size": stat.st_size, "modified":\
+                data.append({"name": aitem, "type": "file", "size": stat.st_size, "modified":
                              stat.st_mtime, "created": stat.st_ctime})
         return data
 
@@ -142,7 +146,7 @@ class wiredFiles():
                 name = "/" + os.path.relpath(os.path.join(path, adir), self.rootpath)
                 stat = os.stat(os.path.join(path, adir))
                 size = 0
-                data.append({"name": name, "type": "dir", "size": size, "modified":\
+                data.append({"name": name, "type": "dir", "size": size, "modified":
                              stat.st_mtime, "created": stat.st_ctime})
             for afile in files:
                 if afile[0][:1] == ".":
@@ -153,7 +157,7 @@ class wiredFiles():
                 except OSError:
                     print "Invalid File: " + str(os.path.join(path, afile))
                     break
-                data.append({"name": name, "type": "file", "size": stat.st_size,\
+                data.append({"name": name, "type": "file", "size": stat.st_size,
                              "modified": stat.st_mtime, "created": stat.st_ctime})
         return data
 
@@ -217,7 +221,7 @@ class wiredFiles():
         try:
             shutil.move(srcpath, destpath)
         except (IOError, OSError) as e:
-            self.logger.error("Move failed: %s -> %s: %s",srcpath, destpath, e)
+            self.logger.error("Move failed: %s -> %s: %s", srcpath, destpath, e)
             return 0
         if os.path.exists(srcpath) or not os.path.exists(destpath):
             self.logger.error("Something went wrong while trying to move %s -> %s", srcpath, destpath)
@@ -261,16 +265,33 @@ class wiredFiles():
             return 0
         return stat.f_frsize * stat.f_bavail
 
-    def simpleDirList(self, dir):
+    def simpleDirList(self, dir, cached=True, relative=True):
+        path = dir
+        if relative:
+            dir = str(self.rootpath) + str(dir)
         filelist = []
-        try:
-            list = os.listdir(dir)
-        except OSError:
-            self.logger.error("Server failed to open %s", dir)
-            return 0
+        list = 0
+        if cached:
+            list = self.parent.indexer.getCachedDirList(path)
+        if not list:
+            if cached:
+                self.logger.debug("%s DIRECT lookup", path)
+                direct = 1
+            try:
+                list = os.listdir(dir)
+            except OSError:
+                self.logger.error("Server failed to open %s", dir)
+                return 0
         for aitem in list:
             if aitem[0] != ".":
                 filelist.append(aitem)
+        try:
+            if direct:
+                # since we looked it up directly, we add this to the cache now
+                ## add check for caching enabled here
+                self.parent.indexer.addQueryCache(path, filelist)
+        except:
+            pass
         return filelist
 
 
@@ -278,3 +299,90 @@ def touch(fname, times=None):
     if not open(fname, 'w').close():
         return 0
     return 1
+
+
+class LISTgetter(threading.Thread):
+    def __init__(self, parent, user, indexer, path, datasink):
+        threading.Thread.__init__(self)
+        self.lock = threading.Lock()
+        self.parent = parent
+        self.user = user
+        self.indexer = indexer
+        self.logger = self.parent.logger
+        self.config = self.parent.config
+        self.path = path
+        self.sink = datasink
+
+    def run(self):
+        files = wiredFiles(self)
+        data = ""
+        if files.isDropBox(self.path) and not self.user.checkPrivs("viewDropboxes"):
+            # send empty result for this dropbox
+            self.logger.debug("no access to dropbox %s", self.path)
+            spaceAvail = files.spaceAvail(self.path)
+            self.sink('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
+            self.shutdown()
+
+        filelist = files.getDirList(self.path)
+        if not type(filelist) is list:
+            self.logger.error("invalid value in LIST for %s", self.path)
+            self.parent.reject(520)
+            self.shutdown()
+        for aitem in filelist:
+            dirpath = os.path.join(str(self.path), str(aitem['name']))
+            ftype = 0
+            if aitem['type'] == 'dir':
+                ftype = files.getFolderType(dirpath)
+            data += ('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) +
+                     str(aitem['size']) + chr(28) + wiredfunctions.wiredTime(aitem['created']) +
+                     chr(28) + wiredfunctions.wiredTime(aitem['modified']) + chr(4))
+        spaceAvail = files.spaceAvail(self.path)
+        data += ('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
+        if data:
+            self.sink(data)
+        self.shutdown()
+
+    def shutdown(self):
+        self.logger.debug("EXIT LISTgetter Thread")
+        sys.exit()
+
+
+class LISTRECURSIVEgetter(threading.Thread):
+    def __init__(self, parent, user, indexer, path, datasink):
+        threading.Thread.__init__(self)
+        self.lock = threading.Lock()
+        self.parent = parent
+        self.user = user
+        self.indexer = indexer
+        self.logger = self.parent.logger
+        self.config = self.parent.config
+        self.path = path
+        self.sink = datasink
+
+    def run(self):
+        files = wiredFiles(self)
+        filelist = files.getRecursiveDirList(self.path)
+        data = ""
+        if not type(filelist) is list:
+            self.logger.error("invalid value in LISTRECURSIVEgetter for %s", self.path)
+            self.parent.reject(520)
+            self.shutdown()
+        if len(filelist) != 0:
+            for aitem in filelist:
+                dirpath = os.path.join(str(self.path), str(aitem['name']))
+                ftype = 0
+                if aitem['type'] == 'dir':
+                    ftype = files.getFolderType(dirpath)
+                data += ('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) +
+                         str(aitem['size']) + chr(28) + wiredfunctions.wiredTime(aitem['created']) +
+                         chr(28) + wiredfunctions.wiredTime(aitem['modified']) + chr(4))
+
+        spaceAvail = files.spaceAvail(self.path)
+        data += ('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
+        if data:
+            self.sink(data)
+        self.shutdown()
+
+    def shutdown(self):
+        self.logger.debug("EXIT LISTRECURSIVEgetter Thread")
+        sys.exit()

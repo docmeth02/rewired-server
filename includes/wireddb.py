@@ -41,7 +41,7 @@ class wiredDB():
         if not self.openDB():
             return 0
         sql = "UPDATE wiredUsers SET password='" + str(data[1]) + "', groupname='" + str(data[2]) + "', privs='" +\
-        str(data[3]) + "' WHERE name='" + str(data[0]) + "' AND type='" + str(type) + "';"
+            str(data[3]) + "' WHERE name='" + str(data[0]) + "' AND type='" + str(type) + "';"
         result = self.pointer.execute(sql)
         self.conn.commit()
         if not result:
@@ -70,18 +70,19 @@ class wiredDB():
         # since there is no check if a table exists try to create basic userdb everytime we open the db
         self.pointer.execute('CREATE TABLE IF NOT EXISTS wiredUsers (name TEXT UNIQUE, password TEXT, groupname \
                              TEXT, type BOOL, privs TEXT, PRIMARY KEY(name))')  # type group/user 0/1
-        self.pointer.execute("INSERT OR IGNORE INTO wiredUsers VALUES (?, ?, ?, ?, ?);", ["admin",\
-                            "d033e22ae348aeb5660fc2140aec35850c4da997", '', 1, '1' + chr(28) + '1' + chr(28) +\
-                            '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' +\
-                            chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) +\
-                            '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '0' +\
-                            chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '1'])
+        self.pointer.execute("INSERT OR IGNORE INTO wiredUsers VALUES (?, ?, ?, ?, ?);",
+                             ["admin", "d033e22ae348aeb5660fc2140aec35850c4da997", '', 1, '1' + chr(28) + '1' +
+                              chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) +
+                              '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' +
+                              chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) +
+                              '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '1'])
         if self.config['guestOn']:
-            self.pointer.execute("INSERT OR IGNORE INTO wiredUsers VALUES (?, ?, ?, ?, ?);", ["guest", "", "", 1, '0' +\
-                                chr(28) + '0' + chr(28) + '1' + chr(28) + '0' + chr(28) + '1' + chr(28) + '1' + chr(28) +\
-                                '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' +\
-                                chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) +\
-                                '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0'])
+            self.pointer.execute("INSERT OR IGNORE INTO wiredUsers VALUES (?, ?, ?, ?, ?);",
+                                 ["guest", "", "", 1, '0' + chr(28) + '0' + chr(28) + '1' + chr(28) + '0' + chr(28) +
+                                  '1' + chr(28) + '1' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' +
+                                  chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' +
+                                  chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' +
+                                  chr(28) + '0' + chr(28) + '0' + chr(28) + '0'])
         self.conn.commit()
         data = 0
         self.pointer.execute("SELECT * FROM wiredUsers WHERE type=?;", [type])
@@ -95,14 +96,14 @@ class wiredDB():
     def saveUser(self, user):
         if not self.openDB():
             return 0
-        self.pointer.execute("SELECT * FROM wiredUsers WHERE name = '" + str(user[0]) +\
+        self.pointer.execute("SELECT * FROM wiredUsers WHERE name = '" + str(user[0]) +
                              "' AND type ='" + str(user[3]) + "';")
         existing = self.pointer.fetchall()
         if existing:
             # user already exists!
             self.closeDB()
             return 0
-        self.pointer.execute("INSERT INTO wiredUsers VALUES ('" + str(user[0]) + "','" + str(user[1]) + "', '" +\
+        self.pointer.execute("INSERT INTO wiredUsers VALUES ('" + str(user[0]) + "','" + str(user[1]) + "', '" +
                              str(user[2]) + "', '" + str(user[3]) + "', '" + str(user[4]) + "');")
         self.conn.commit()
         self.closeDB()
@@ -164,23 +165,23 @@ class wiredDB():
         self.openIndex()
         if not self.openIndex():
             return 0
-        processed = 0
-        notify = time()
         for aitem in filelist:
-            self.pointer.execute("INSERT OR REPLACE INTO wiredIndex VALUES (?, ?, ?, ?, ?);", [str(aitem['name']), \
-                                str(aitem['type']), str(aitem['size']), str(aitem['created']), str(aitem['modified'])])
-            processed += 1
-            if time() >= notify:
-                self.logger.debug("Index: processed %s out of %s items.", processed, len(filelist))
-                notify = time() + 60
+            self.pointer.execute("INSERT OR REPLACE INTO wiredIndex VALUES (?, ?, ?, ?, ?);",
+                                 [str(aitem['name']), str(aitem['type']), str(aitem['size']), str(aitem['created']),
+                                  str(aitem['modified'])])
         self.conn.commit()
         self.closeIndex()
         return 1
 
     def searchIndex(self, searchstring):
         self.openIndex()
-        self.pointer.execute("SELECT * FROM wiredIndex WHERE name LIKE ?;", ['%' + str(searchstring) + '%'])
-        result = self.pointer.fetchall()
+        try:
+            self.pointer.execute("SELECT * FROM wiredIndex WHERE name LIKE ?;", ['%' + str(searchstring) + '%'])
+            result = self.pointer.fetchall()
+        except:
+            self.logger.error("Failed to process sqlite query for search term: %s", searchstring)
+            self.closeIndex()
+            return 0
         self.closeIndex()
         return result
 
@@ -228,6 +229,22 @@ class wiredDB():
             result = 0
             pass
         return result
+
+    def getDirListing(self, path):
+        self.openIndex()
+        dirlist = []
+        self.pointer.execute("SELECT subname NOT GLOB '*/*' AS sameDir, subname, name, type, size, created, modified\
+                             FROM (SELECT substr(name, length(?) + 2) AS subname, name, type, size, created, modified\
+                             FROM wiredindex WHERE name GLOB ? || '*')", [str(path), str(path)])
+        result = self.pointer.fetchall()
+        for aresult in result:
+            if aresult[0] and len(aresult[1]):
+                dirlist.append(aresult[2:])
+        self.conn.commit()
+        self.closeIndex()
+        if len(dirlist):
+            return dirlist
+        return 0
 
     ## Banned Users ##
     def openBans(self):
@@ -288,7 +305,7 @@ class wiredDB():
     def removeBan(self, user, nick, ip, ends):
         self.openBans()
         try:
-            self.pointer.execute("DELETE FROM bans WHERE user = ? AND nick = ? AND ip = ? AND ends = ?;",\
+            self.pointer.execute("DELETE FROM bans WHERE user = ? AND nick = ? AND ip = ? AND ends = ?;",
                                  [user, nick, ip, ends])
             self.conn.commit()
             self.pointer.execute("VACUUM")
