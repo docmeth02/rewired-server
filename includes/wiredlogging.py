@@ -11,6 +11,7 @@ class wiredlog():
         self.config = self.parent.config
         self.logger = self.parent.logger
         self.dbIsOpen = 0
+        self.shutdown = 0
         self.pointer = None
         self.buffer = []
         self.committimer = Timer(15, self.commit_to_db)
@@ -28,6 +29,18 @@ class wiredlog():
         except:
             return 0
         self.dbIsOpen = 1
+        return 1
+
+    def stop(self):
+        if self.committimer:
+            self.logger.debug("Shutting down logger")
+            self.committimer.cancel()
+            self.committimer.join(1)
+            self.shutdown = 1
+        if len(self.buffer):
+            self.logger.info("Shutdown: syncing remaining changes to log")
+            self.commit_to_db()
+        self.logger.debug("logger thread shutdown done")
         return 1
 
     def closelog(self):
@@ -68,6 +81,7 @@ class wiredlog():
         self.lock.release()
         self.logger.debug("COMMIT RUN DONE -> %s events in buffer", len(self.buffer))
         self.closelog()
-        self.committimer = Timer(15, self.commit_to_db)
-        self.committimer.start()
+        if not self.shutdown:
+            self.committimer = Timer(15, self.commit_to_db)
+            self.committimer.start()
         return 1

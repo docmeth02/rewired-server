@@ -111,6 +111,8 @@ class reWiredServer():
         if self.threadDebugtimer:
             self.threadDebugtimer.cancel()
             self.threadDebugtimer.join()
+        if self.wiredlog:
+            self.wiredlog.stop()
         for key, aclient in self.clients.items():
             self.lock.acquire()
             try:
