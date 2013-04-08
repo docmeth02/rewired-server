@@ -40,17 +40,33 @@ class wiredIndex(threading.Thread):
         self.logger.info("Starting index run")
         filehandler = wiredfiles.wiredFiles(self)
         self.logger.debug("Gathering filelist...")
-        rootlist = filehandler.getRecursiveDirList("/")  # get filelist
+        try:
+            rootlist = filehandler.getRecursiveDirList("/")  # get filelist
+        except:
+            self.logger.error("Indexer: Error while getting server filelist")
         self.logger.debug("Pruning the index db...")
-        self.db.pruneIndex(self.config, rootlist)  # check for deleted files and prune them from the db
+        try:
+            self.db.pruneIndex(self.config, rootlist)  # check for deleted files and prune them from the db
+        except:
+            self.logger.error("'Indexer: Error while pruning index db")
         self.logger.debug("Indexing files...")
-        self.db.updateIndex(rootlist)  # update indexdb
-        self.updateServerSize(rootlist)  # update server info values
+        try:
+            self.db.updateIndex(rootlist)  # update indexdb
+        except:
+            self.logger.error("Indexer: Error while updating server size")
+        try:
+            self.updateServerSize(rootlist)  # update server info values
+        except:
+            self.logger.error("Indexer: Error while updating server size")
         self.logger.info("Finished index run: %s files totaling %s bytes.", self.files, self.size)
         return 1
 
     def searchIndex(self, searchString):
-        dbresult = self.db.searchIndex(searchString)
+        try:
+            dbresult = self.db.searchIndex(str(searchString))
+        except:
+            self.logger.error("Indexer: Error while processing search for term: %s", searchString)
+            return 0
         result = []
         for aresult in dbresult:
             if str(searchString).upper() in str(os.path.basename(str(aresult[0]))).upper():
@@ -65,10 +81,13 @@ class wiredIndex(threading.Thread):
         self.files = 0
         if not len(filelist):
                 return 0  # no files in list
-        for afile in filelist:
-            if str(afile['type']).upper() == "FILE":
-                self.size += int(afile['size'])
-                self.files += 1
+        try:
+            for afile in filelist:
+                if str(afile['type']).upper() == "FILE":
+                    self.size += int(afile['size'])
+                    self.files += 1
+        except:
+            self.logger.error("Indexer: Error while calculating new server size")
         if lastSize == self.size and lastFiles == self.files:
             return 0
         self.logger.debug("Server filecount or size changed!")
