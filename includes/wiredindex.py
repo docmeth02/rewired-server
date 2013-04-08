@@ -93,18 +93,19 @@ class wiredIndex(threading.Thread):
 
     def getCachedDirList(self, path):
         # this needs to be threadsafe as all clients can access it concurrently
-        if self.lastindex + 1800 <= time.time():
-            self.logger.info("Index cache EXPIRED on %s", path)
-            return 0
-
         if path in self.queryCache:  # check for hit in ramcache
             if self.queryCache[path]['date'] + 600 >= time.time():
                 self.logger.debug("query cache HIT on %s", path)
                 return self.queryCache[path]['data']  # still valid
+
             self.lock.acquire()
             self.queryCache.pop(path, 0)  # expired - purge it from cache
             self.lock.release()
             self.logger.debug("query cache item EXPIRED %s", path)
+
+        if self.lastindex + 1800 <= time.time():
+            self.logger.info("Index cache EXPIRED on %s", path)
+            return 0
 
         # get result from index db
         self.lock.acquire()
@@ -114,12 +115,16 @@ class wiredIndex(threading.Thread):
         if result:
             self.logger.debug("index cache HIT on %s", path)
             if not path in self.queryCache:
-                self.lock.acquire()
-                self.queryCache[path] = {'date': time.time(), 'data': result}
-                self.lock.release()
+                self.addQueryCache(path, result)
             return result
         self.logger.debug("index cache MISS on %s", path)
         return 0
+
+    def addQueryCache(self, path, result):
+        self.lock.acquire()
+        self.queryCache[path] = {'date': time.time(), 'data': result}
+        self.lock.release()
+        return 1
 
     def pruneQueryCache(self):
         self.lock.acquire()

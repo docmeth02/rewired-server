@@ -275,6 +275,7 @@ class wiredFiles():
         if not list:
             if cached:
                 self.logger.debug("%s DIRECT lookup", path)
+                direct = 1
             try:
                 list = os.listdir(dir)
             except OSError:
@@ -283,6 +284,13 @@ class wiredFiles():
         for aitem in list:
             if aitem[0] != ".":
                 filelist.append(aitem)
+        try:
+            if direct:
+                # since we looked it up directly, we add this to the cache now
+                ## add check for caching enabled here
+                self.parent.indexer.addQueryCache(path, filelist)
+        except:
+            pass
         return filelist
 
 
