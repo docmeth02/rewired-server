@@ -100,7 +100,6 @@ class reWiredServer():
         logging.shutdown()
 
     def serverShutdown(self, signum=None, frame=None):
-        #global clients, transferqueue, indexer, db, tracker, keeprunning, logger, config
         self.logger.info("Got signal: %s.Starting server shutdown", signum)
         # shutdown the server
         self.keeprunning = 0
@@ -147,9 +146,10 @@ class reWiredServer():
     def houseKeeping(self):
         if not self.keeprunning:
             return 0  # server is about to shutdown. don't interfere
-        self.checkTracker()
         self.cleantimer = threading.Timer(60.0, self.houseKeeping)  # call ourself again in 60 seconds
         self.cleantimer.start()
+        self.checkTracker()
+        self.checkIndexer()
         if self.indexer.sizeChanged:    # the indexer messaged that the server info changed
             self.logger.debug("Server size changed: Sending new server info to all cients")
             for aid, aclient in self.clients.items():  # now update all clients
@@ -282,4 +282,13 @@ class reWiredServer():
                         newtracker.start()
                         self.tracker.append(newtracker)
 
-        #self.logger.debug('Tracker threads: %s', len(self.tracker))
+    def checkIndexer(self):
+        if not self.indexer.isAlive():
+            print "Indexer died on us!"
+            self.indexer.join(5)
+            del self.indexer
+            self.indexer = wiredindex.wiredIndex(self)
+            self.indexer.start()
+            return 0
+        return 1
+
