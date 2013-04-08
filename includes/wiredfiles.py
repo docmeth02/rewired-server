@@ -28,7 +28,7 @@ class wiredFiles():
             size = stat.st_size
             type = "file"
             hash = self.hashFile(targetpath)
-        return {"name": target, "type": type, "hash": str(hash), "size": size, \
+        return {"name": target, "type": type, "hash": str(hash), "size": size,
                 "modified": stat.st_mtime, "created": stat.st_ctime}
 
     def hashFile(self, target):
@@ -67,7 +67,7 @@ class wiredFiles():
             return 0
         if os.path.exists(os.path.join(target, ".wired_upload_folder")):
             return 2
-        if  os.path.exists(os.path.join(target, ".wired_drop_box")):
+        if os.path.exists(os.path.join(target, ".wired_drop_box")):
             return 3
         return 1
 
@@ -128,11 +128,11 @@ class wiredFiles():
                     size = len(subdir)
                 else:
                     size = 0
-                data.append({"name": aitem, "type": "dir", "size": size, "modified":\
+                data.append({"name": aitem, "type": "dir", "size": size, "modified":
                              stat.st_mtime, "created": stat.st_ctime})
             if os.path.isfile(os.path.join(dir, aitem)):
                 stat = os.stat(os.path.join(dir, aitem))
-                data.append({"name": aitem, "type": "file", "size": stat.st_size, "modified":\
+                data.append({"name": aitem, "type": "file", "size": stat.st_size, "modified":
                              stat.st_mtime, "created": stat.st_ctime})
         return data
 
@@ -145,7 +145,7 @@ class wiredFiles():
                 name = "/" + os.path.relpath(os.path.join(path, adir), self.rootpath)
                 stat = os.stat(os.path.join(path, adir))
                 size = 0
-                data.append({"name": name, "type": "dir", "size": size, "modified":\
+                data.append({"name": name, "type": "dir", "size": size, "modified":
                              stat.st_mtime, "created": stat.st_ctime})
             for afile in files:
                 if afile[0][:1] == ".":
@@ -156,7 +156,7 @@ class wiredFiles():
                 except OSError:
                     print "Invalid File: " + str(os.path.join(path, afile))
                     break
-                data.append({"name": name, "type": "file", "size": stat.st_size,\
+                data.append({"name": name, "type": "file", "size": stat.st_size,
                              "modified": stat.st_mtime, "created": stat.st_ctime})
         return data
 
@@ -220,7 +220,7 @@ class wiredFiles():
         try:
             shutil.move(srcpath, destpath)
         except (IOError, OSError) as e:
-            self.logger.error("Move failed: %s -> %s: %s",srcpath, destpath, e)
+            self.logger.error("Move failed: %s -> %s: %s", srcpath, destpath, e)
             return 0
         if os.path.exists(srcpath) or not os.path.exists(destpath):
             self.logger.error("Something went wrong while trying to move %s -> %s", srcpath, destpath)
@@ -297,7 +297,7 @@ class LISTgetter(threading.Thread):
 
     def run(self):
         files = wiredFiles(self)
-        data =""
+        data = ""
         if files.isDropBox(self.path) and not self.user.checkPrivs("viewDropboxes"):
             # send empty result for this dropbox
             self.logger.debug("no access to dropbox %s", self.path)
@@ -315,9 +315,9 @@ class LISTgetter(threading.Thread):
             ftype = 0
             if aitem['type'] == 'dir':
                 ftype = files.getFolderType(dirpath)
-            data += ('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) + str(aitem['size']) +\
-                                chr(28) + wiredfunctions.wiredTime(aitem['created']) + chr(28) +\
-                                wiredfunctions.wiredTime(aitem['modified']) + chr(4))
+            data += ('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) +
+                     str(aitem['size']) + chr(28) + wiredfunctions.wiredTime(aitem['created']) +
+                     chr(28) + wiredfunctions.wiredTime(aitem['modified']) + chr(4))
         spaceAvail = files.spaceAvail(self.path)
         data += ('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
         if data:
@@ -355,14 +355,14 @@ class LISTRECURSIVEgetter(threading.Thread):
                 ftype = 0
                 if aitem['type'] == 'dir':
                     ftype = files.getFolderType(dirpath)
-                data += ('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) +\
-                                    str(aitem['size']) + chr(28) + wiredfunctions.wiredTime(aitem['created']) +\
-                                    chr(28) + wiredfunctions.wiredTime(aitem['modified']) + chr(4))
+                data += ('410 ' + wiredfunctions.normWiredPath(dirpath) + chr(28) + str(ftype) + chr(28) +
+                         str(aitem['size']) + chr(28) + wiredfunctions.wiredTime(aitem['created']) +
+                         chr(28) + wiredfunctions.wiredTime(aitem['modified']) + chr(4))
 
         spaceAvail = files.spaceAvail(self.path)
         data += ('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
         if data:
-         self.sink(data)
+            self.sink(data)
         self.shutdown()
 
     def shutdown(self):
