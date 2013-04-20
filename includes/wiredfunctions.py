@@ -72,7 +72,11 @@ def initLogger(logfile, level):
     if level.upper() == "NONE":
         logFile = 0
     if logFile:
-        filehandler = logging.FileHandler(str(logfile), "a")
+        try:
+            filehandler = logging.FileHandler(str(logfile), "a")
+        except IOError:
+            print "Failed to open Logfile %s" % logfile
+            raise SystemExit
         filehandler.setLevel(filelevel)
         filehandler.setFormatter(formatter)
         log.addHandler(filehandler)

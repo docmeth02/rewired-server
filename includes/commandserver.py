@@ -6,8 +6,12 @@ import ssl
 import wireduser
 import ipaddr
 from commandhandler import commandHandler
-from dns import resolver, reversename
-from dns.resolver import NXDOMAIN
+try:
+    from dns import resolver, reversename
+    from dns.resolver import NXDOMAIN
+except:
+    print "Failed to load dns lib. Please install python-dnspython."
+    raise SystemExit
 from traceback import format_exception
 
 
