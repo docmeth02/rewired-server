@@ -4,6 +4,12 @@ import threading
 import ssl
 import sys
 import wireduser
+try:
+    from M2Crypto import X509, RSA
+except:
+    print "Failed to load required module. Please install python M2crypto."
+    raise SystemExit
+
 
 class wiredTracker(threading.Thread):
     def __init__(self, parent, trackerurl):
@@ -41,12 +47,6 @@ class wiredTracker(threading.Thread):
         self.nextUpdate = 0
         self.regrefresh = time.time() + 3600  # Refresh registration every 60 minutes
         self.retry = 10
-        try:
-            from M2Crypto import X509, RSA
-        except:
-            self.logger.error("Failed to load required module. Please install python M2crypto.")
-            self.keepalive = 0
-            raise SystemExit
 
     def run(self):
         if not self.config['trackerRegister']:
@@ -63,6 +63,8 @@ class wiredTracker(threading.Thread):
                         break
                     self.retry += 1
                     time.sleep(1)
+            else:
+                time.sleep(1)
         self.disconnectTCPSocket()
 
         while self.keepalive:
