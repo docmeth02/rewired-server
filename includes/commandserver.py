@@ -46,9 +46,9 @@ class commandServer(threading.Thread):
         self.lastPing = time.time()
 
     def run(self):
-        try:
             self.logger.info("Incoming connection form %s", self.user.ip)
             self.socket.settimeout(1)
+
             while not self.shutdown:
                 data = ""
                 char = 0
@@ -67,30 +67,20 @@ class commandServer(threading.Thread):
                         data += char
                     if char == '':  # a disconnected socket returns an empty string on read
                         self.shutdown = 1
-
                 if not self.shutdown:
                     response = self.handler.gotdata(data)
+            self.exit()
 
-            self.logger.info("Client %s disconnected", self.user.ip)
-            self.logOut()
-            try:
-                self.socket.shutdown(socket.SHUT_RDWR)
-                self.socket.close()
-            except:
-                pass
-            self.logger.info("CMDhandler process exited")
+    def exit(self):
+        self.logger.info("Client %s disconnected", self.user.ip)
+        self.logOut()
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+            self.socket.close()
         except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            lines = format_exception(exc_type, exc_value, exc_traceback)
-            self.logger.exception(''.join('!! ' + line for line in lines))
-            try:
-                self.shutdown = 1
-                self.logOut()
-                self.socket.shutdown(socket.SHUT_RDWR)
-                self.socket.close()
-            except:
-                pass
             pass
+        self.logger.info("CMDhandler process exited")
+        raise SystemExit
 
     def sendData(self, data):
         try:
@@ -117,7 +107,7 @@ class commandServer(threading.Thread):
     def logOut(self):
         self.handler.leaveChat(1)
         self.lock.acquire()
-        self.parent.clients.pop(self.id, 0)
+        self.parent.clients.pop(self.id)
         self.lock.release()
         return 1
 
