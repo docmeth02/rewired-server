@@ -56,8 +56,13 @@ class commandServer(threading.Thread):
                     char = 0
                     try:
                         char = self.socket.recv(1)
-                    except ssl.SSLError:
-                        pass
+                    except ssl.SSLError as e:
+                        if e.message == 'The read operation timed out':
+                            pass
+                        else:
+                            self.logger.debug("Caught SSLError: %s" % e)
+                            self.shutdown = 1
+                            break
                     except socket.error:
                         self.logger.debug("Caught socket.error")
                         self.shutdown = 1
@@ -65,8 +70,10 @@ class commandServer(threading.Thread):
 
                     if char:
                         data += char
-                    if char == '':  # a disconnected socket returns an empty string on read
+                    elif char == '':  # a disconnected socket returns an empty string on read
                         self.shutdown = 1
+                    else:
+                        time.sleep(0.1)
                 if not self.shutdown:
                     response = self.handler.gotdata(data)
             self.exit()
