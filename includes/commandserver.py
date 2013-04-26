@@ -47,7 +47,7 @@ class commandServer(threading.Thread):
 
     def run(self):
             self.logger.info("Incoming connection form %s", self.user.ip)
-            self.socket.settimeout(1)
+            self.socket.settimeout(.1)
 
             while not self.shutdown:
                 data = ""
@@ -72,6 +72,7 @@ class commandServer(threading.Thread):
                         data += char
                     elif char == '':  # a disconnected socket returns an empty string on read
                         self.shutdown = 1
+                        break
                     else:
                         time.sleep(0.1)
                 if not self.shutdown:
