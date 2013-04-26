@@ -5,7 +5,7 @@ import re
 import base64
 import logging
 import platform
-from time import time, strftime, localtime, timezone
+from time import time, strftime, localtime, timezone, altzone, daylight
 try:
     # This will fail on python > 2.7
     from ssl import OPENSSL_VERSION
@@ -15,7 +15,10 @@ except:
 
 def wiredTime(timestamp):
     parsed = localtime(float(timestamp))
-    offset = utcOffset(timezone)
+    if daylight:  # use offset including DST
+        offset = utcOffset(altzone)
+    else:
+        offset = utcOffset(timezone)
     try:
         parsed = strftime("%Y-%m-%dT%H:%M:%S", parsed) + offset
     except:
