@@ -159,7 +159,7 @@ def loadConfig(confFile):
         except:
             print "Failed to create server cert: " + str(config['cert'])
     config['serverStarted'] = time()
-    config['appVersion'] = "20130204A2"
+    config['appVersion'] = "20130427A2"
     config['appName'] = "re:wired Server"
     config['banner'] = readBanner(config['serverBanner'])
     return config
