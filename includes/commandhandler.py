@@ -110,12 +110,15 @@ class commandHandler():
         for aid, aclient in sorted(userlist.items(), key=lambda x: x):
                 ip = ""
                 host = ""
-                if self.parent.user.checkPrivs("getUserInfo"):
+                user = ""
+                if (self.parent.user.checkPrivs("getUserInfo") and 'MODERATE' in self.config['securityModel'].upper())\
+                        or 'OFF' in self.config['securityModel'].upper():
                     ip = aclient.user.ip
                     host = aclient.user.host
+                    user = aclient.user.user
                 response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) + str(aclient.user.idle) +\
                 chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
-                str(aclient.user.nick) + chr(28) + str(aclient.user.user) + chr(28) + str(ip) + chr(28) +\
+                str(aclient.user.nick) + chr(28) + str(user) + chr(28) + str(ip) + chr(28) +\
                 str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
                 self.parent.sendData(response)
 
