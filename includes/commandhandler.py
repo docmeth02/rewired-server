@@ -522,6 +522,7 @@ class commandHandler():
         if file.delete(parameters[0]):
             self.logger.info("%s deleted file %s", self.parent.user.user, parameters[0])
             return 1
+        self.reject(500)
         self.logger.error("server failed to delete file %s", parameters[0])
         return 0
 

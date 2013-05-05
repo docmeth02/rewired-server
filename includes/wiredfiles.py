@@ -203,13 +203,16 @@ class wiredFiles():
         if not os.path.exists(path):
             return 0
         if os.path.isfile(path):
-            os.unlink(path)
+            try:
+                os.unlink(path)
+            except OSError:
+                return 0
             return 1
         try:
             shutil.rmtree(path)
-        except:
+        except OSError:
             self.logger.error("Recursive delete failed on %s", path)
-            pass
+            return 0
         return 1
 
     def move(self, src, dest):
