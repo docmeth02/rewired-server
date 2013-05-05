@@ -262,7 +262,9 @@ class reWiredServer():
 
     def getTrackers(self):
         clean = []
-        trackers = self.config['trackerUrl'].split(',')
+        trackers = self.config['trackerUrl']
+        if type(self.config['trackerUrl']) is str:
+            trackers = self.config['trackerUrl'].split(',')
         for atracker in trackers:
             clean.append(atracker.strip())
         return clean
@@ -289,4 +291,3 @@ class reWiredServer():
             self.indexer.start()
             return 0
         return 1
-
