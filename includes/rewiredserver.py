@@ -174,6 +174,7 @@ class reWiredServer():
                 self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",\
                                   aid, (time() - aclient.lastPing))
                 try:
+                    aclient.logOut()
                     self.lock.acquire()
                     aclient.shutdown = 1
                     aclient.socket.shutdown(socket.SHUT_RDWR)
