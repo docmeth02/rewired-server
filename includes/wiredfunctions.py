@@ -123,6 +123,7 @@ def loadConfig(confFile):
     cert = string(default="cert.pem")
     logFile = string(default="logfile")
     userIdleTime = integer(default=600)
+    pingTimeout = integer(default=600)
     dbFile = string(default="rewiredDB.db")
     doIndex = boolean(default=True)
     fileRoot =string(default="files")

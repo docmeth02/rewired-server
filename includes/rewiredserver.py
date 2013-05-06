@@ -170,7 +170,7 @@ class reWiredServer():
                 aclient.user.knownIdle = 1
                 self.lock.release()
 
-            if not aclient.is_alive() or aclient.lastPing <= (time() - 300):
+            if not aclient.is_alive() or aclient.lastPing <= (time() - self.config['pingTimeout']):
                 self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",\
                                   aid, (time() - aclient.lastPing))
                 try:
