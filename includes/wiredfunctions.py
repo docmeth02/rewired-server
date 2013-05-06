@@ -140,13 +140,14 @@ def loadConfig(confFile):
     serverPidFile = string(default="server.pid")
     guestOn = boolean(default=True)
     adminOn = boolean(default=True)
-    excludePattern = string(default="")
+    # Exclude file or directories by patterns. *.iso, moo*, Icon
+    excludePatterns = list(default=list("Icon"))
     # Level of client isolation: off/moderate/paranoid
     securityModel = string(default="moderate")
     # loglevels: debug, info, warning, error, none
     logLevel = string(default=debug)"""
     spec = default.split("\n")
-    config = ConfigObj(confFile, list_values=False, stringify=True, configspec=spec)
+    config = ConfigObj(confFile, list_values=True, stringify=True, configspec=spec)
     validator = Validator()
     config.validate(validator, copy=True)
     config.filename = confFile

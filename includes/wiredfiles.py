@@ -5,12 +5,14 @@ import hashlib
 import diskusage
 import threading
 import wiredfunctions
+from fnmatch import fnmatch
 
 
 class wiredFiles():
     def __init__(self, parent):
         self.parent = parent
         self.rootpath = self.parent.config['fileRoot']
+        self.patterns = self.parent.config['excludePatterns']
         self.logger = parent.logger
 
     def getStat(self, target):
@@ -119,7 +121,7 @@ class wiredFiles():
         except OSError:
             return 0
         for aitem in list:
-            if aitem[0] == ".":     # skip file/dirnames starting with .
+            if aitem[0] == "." or self.matchPatterns(aitem):     # skip matched file/dirnames
                 continue
             if os.path.isdir(os.path.join(dir, aitem)):
                 stat = os.stat(os.path.join(dir, aitem))
@@ -141,15 +143,16 @@ class wiredFiles():
         data = []
         for (path, dirs, files) in os.walk(dir, followlinks=True):
             for adir in dirs:
-                if adir[0][:1] == ".": continue  # mark
+                if adir[0][:1] == "." or self.matchPatterns(adir):
+                    continue
                 name = "/" + os.path.relpath(os.path.join(path, adir), self.rootpath)
                 stat = os.stat(os.path.join(path, adir))
                 size = 0
                 data.append({"name": name, "type": "dir", "size": size, "modified":
                              stat.st_mtime, "created": stat.st_ctime})
             for afile in files:
-                if afile[0][:1] == ".":
-                    continue  # mark
+                if afile[0][:1] == "." or self.matchPatterns(afile):
+                    continue
                 name = "/" + os.path.relpath(os.path.join(path, afile), self.rootpath)
                 try:
                     stat = os.stat(os.path.join(path, afile))
@@ -275,9 +278,17 @@ class wiredFiles():
             self.logger.error("Server failed to open %s", dir)
             return 0
         for aitem in list:
-            if aitem[0] != ".":
+            if aitem[0] != "." and not self.matchPatterns(aitem):
                 filelist.append(aitem)
         return filelist
+
+    def matchPatterns(self, filename):
+        if type(self.patterns) is not list or not len(self.patterns):
+            return 0
+        for apattern in self.patterns:
+            if fnmatch(filename, apattern):
+                return 1
+        return 0
 
 
 def touch(fname, times=None):
