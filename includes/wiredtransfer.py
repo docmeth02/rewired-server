@@ -21,34 +21,54 @@ class wiredTransfer():
         self.file = ""
         self.size = 0
         self.offset = 0
-        self.tx = 0
-        self.rx = 0
-        self.txLimit = 0
-        self.rxLimit = 0
-        self.txRate = 0
-        self.rxRate = 0
+        self.bytesdone = 0
+        self.limit = 0
+        self.rate = 0
         self.checksum = ""
 
     def getAbsolutePath(self, file):
-        return str(self.config['fileRoot']) + str(file)
+        return str(self.config['fileRoot']) + os.sep + str(file)
 
     def genID(self):
         return str(uuid.uuid4())
 
+    def startTransfer(self, data):
+        data = (str(data).strip())
+        if data.count(chr(4)) == 0:
+            return 0
+        split = wiredfunctions.tsplit(data, chr(4))
+        for data in split:
+            if not data:
+                break
+            data = data.replace(chr(4), '')
+            command = data
+            parameters = {}
+            if data.count(' ') != 0:
+                end = data.index(' ')
+                parameters = data[end + 1:]
+                command = data[:end]
+                parameters = wiredfunctions.tsplit(parameters, chr(28))
+
+            if not command == "TRANSFER":
+                self.logger.error("Received invalid command %s on transfer socket", command)
+                return 0
+            self.logger.error("%s requested transfer id %s", self.parent.ip, parameters[0])
+            self.id = str(parameters[0])
+            return 1
+
     def doUpload(self):
-        self.rx = 0
-        file = str(self.getAbsolutePath(self.file))
+        file = self.getAbsolutePath(self.file)
         tempfile = file + ".WiredTransfer"
         if self.offset:
             self.logger.debug("Transfer Offset set to: %s bytes (%s)", self.offset, self.file)
             f = open(tempfile, "a+b")
-            self.rx = int(self.offset)
+            self.bytesdone = int(self.offset)
         else:
             f = open(tempfile, "w+b")
-        if self.rxLimit:
-            self.throttledReceive(self.parent.socket, f)
-        else:
-            self.unthrottledReceive(self.parent.socket, f)
+
+        if not self.process(self.parent.socket, f):
+            f.close()
+            return 0
         f.close()
         stat = os.stat(tempfile)
         if int(stat.st_size) != int(self.size):
@@ -74,131 +94,53 @@ class wiredTransfer():
         if self.offset:
             self.logger.debug("Transfer Offset set to: %s bytes (%s)", self.offset, self.file)
             f.seek(int(self.offset), 0)
-            self.tx += int(self.offset)
-        if self.txLimit:
-            self.throttledSend(f, self.parent.socket)
-        else:
-            self.unthrottledSend(f, self.parent.socket)
-        f.close()
-        return 1
-
-    def throttledReceive(self, input, output):
-        interval = 1.0
-        max_speed = self.rxLimit
-        data_count = 0
-        time_next = time.time() + interval
-        sleep_for = 0
-        while 1:
-            try:
-                buf = ""
-                buf = input.read(512)  # smaller chunks = smoother, more accurate
-                if len(buf) == 0:
-                    break
-                data_count += len(buf)
-                if data_count >= max_speed * interval:
-                    self.rx += int(data_count)
-                    lastrx = data_count
-                    data_count = 0
-                    sleep_for = time_next - time.time()
-                    if sleep_for < 0:
-                        sleep_for = 0
-                if sleep_for:
-                    time.sleep(sleep_for)
-                    time_next = time.time() + interval
-                    sleep_for = 0
-                    self.rxRate = lastrx
-                output.write(buf)
-            except:
-                return 0
-        return 1
-
-    def unthrottledReceive(self, input, output):
-        next = time.time() + 1
-        bytes = 0
-        byte = None
-        try:
-            while byte != "":
-                byte = input.read(1500)
-                if byte != "":
-                    output.write(byte)
-                    bytes += len(byte)
-                    self.rx += int(len(byte))
-                if time.time() >= next:
-                    self.rxRate = bytes
-                    bytes = 0
-                    next = time.time() + 1
-        except:
-            return 0
-        return 1
-
-    def unthrottledSend(self, input, output):
-        next = time.time() + 1
-        bytes = 0
-        byte = None
-        try:
-            while byte != "":
-                byte = input.read(1500)
-                if byte != "":
-                    output.send(byte)
-                    bytes += len(byte)
-                    self.tx += int(len(byte))
-                if time.time() >= next:
-                    self.txRate = bytes
-                    bytes = 0
-                    next = time.time() + 1
-        except:
-            return 0
-        return 1
-
-    def throttledSend(self, input, output):
-        interval = 1.0
-        max_speed = self.txLimit
-        data_count = 0
-        time_next = time.time() + interval
-        sleep_for = 0
-        while 1:
-            try:
-                buf = input.read(512)  # smaller chunks = smoother, more accurate
-                if len(buf) == 0:
-                    break
-                data_count += len(buf)
-                if data_count >= max_speed * interval:
-                    self.tx += int(data_count)
-                    lasttx = data_count
-                    data_count = 0
-                    sleep_for = time_next - time.time()
-                    if sleep_for < 0:
-                        sleep_for = 0
-                if sleep_for:
-                    time.sleep(sleep_for)
-                    time_next = time.time() + interval
-                    sleep_for = 0
-                    self.txRate = lasttx
-                output.write(buf)
-            except:
-                return 0
-        return 1
-
-    def startTransfer(self, data):
-        data = (str(data).strip())
-        if data.count(chr(4)) == 0:
-            return 0
-        split = wiredfunctions.tsplit(data, chr(4))
-        for data in split:
-            if not data:
-                break
-            data = data.replace(chr(4), '')
-            command = data
-            parameters = {}
-            if data.count(' ') != 0:
-                end = data.index(' ')
-                parameters = data[end + 1:]
-                command = data[:end]
-                parameters = wiredfunctions.tsplit(parameters, chr(28))
-
-            if not command == "TRANSFER":
-                self.logger.error("Received invalid command %s on transfer socket", command)
-                return 0
-            self.logger.error("%s requested transfer id %s", self.parent.ip, parameters[0])
-            self.id = str(parameters[0])
+            self.bytesdone = int(self.offset)
+        if self.process(f, self.parent.socket):
+            f.close()
             return 1
+        f.close()
+        return 0
+
+    def process(self, input, output):
+        interval = 1.0
+        data_count = 0
+        time_next = time.time() + interval
+        sleep_for = 0
+        while not self.parent.shutdown:
+            buf = ""
+            try:
+                buf = input.read(512)  # smaller chunks = smoother, more accurate
+            except:
+                break
+            if len(buf) == 0:  # empty string means dead socket or eof
+                break
+            data_count += len(buf)
+            if self.limit and data_count >= self.limit * interval:
+                self.bytesdone += int(data_count)
+                lastbytes = data_count
+                data_count = 0
+                sleep_for = time_next - time.time()
+                if sleep_for < 0:
+                    sleep_for = 0
+
+            elif not self.limit and time.time() >= time_next:
+                self.bytesdone += int(data_count)
+                self.rate = int(data_count)
+                data_count = 0
+                time_next = time.time() + interval
+
+            if sleep_for > 0 and self.limit:
+                time.sleep(sleep_for)
+                time_next = time.time() + interval
+                sleep_for = 0
+                self.rate = lastbytes
+            try:
+                output.write(buf)
+            except:
+                break
+        if data_count:
+            self.bytesdone += data_count
+
+        if self.size == self.bytesdone:
+            return 1
+        return 0

@@ -135,13 +135,13 @@ class wiredUser():
                 if transfer.type == "DOWN":
                     if dl:
                         dl += chr(29)
-                    dl += str(transfer.file) + chr(30) + str(transfer.tx) + chr(30) + str(transfer.size) +\
-                    chr(30) + str(transfer.txRate)
+                    dl += str(transfer.file) + chr(30) + str(transfer.bytesdone) + chr(30) + str(transfer.size) +\
+                    chr(30) + str(transfer.rate)
                 if transfer.type == "UP":
                     if ul:
                         ul += chr(29)
-                    ul += str(transfer.file) + chr(30) + str(transfer.rx) + chr(30) +\
-                    str(transfer.size) + chr(30) + str(transfer.rxRate)
+                    ul += str(transfer.file) + chr(30) + str(transfer.bytesdone) + chr(30) +\
+                    str(transfer.size) + chr(30) + str(transfer.rate)
 
         if dl:
             userinfo += dl + chr(28)

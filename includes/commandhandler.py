@@ -583,8 +583,7 @@ class commandHandler():
         transfer = wiredtransfer.wiredTransfer(self)
         try:
             transfer.userid = self.parent.id
-            transfer.txLimit = int(self.parent.user.privs.downloadSpeed)
-            transfer.rxLimit = int(self.parent.user.privs.uploadSpeed)
+            transfer.limit = int(self.parent.user.privs.downloadSpeed)
             transfer.file = parameters[0]
             transfer.id = transfer.genID()
             transfer.offset = int(parameters[1])
@@ -606,8 +605,7 @@ class commandHandler():
             return 0
         transfer = wiredtransfer.wiredTransfer(self)
         transfer.userid = self.parent.id
-        transfer.txLimit = int(self.parent.user.privs.downloadSpeed)
-        transfer.rxLimit = int(self.parent.user.privs.uploadSpeed)
+        transfer.limit = int(self.parent.user.privs.uploadSpeed)
         transfer.file = parameters[0]
         transfer.checksum = str(parameters[2])
         # check for already existing files

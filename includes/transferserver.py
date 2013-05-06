@@ -51,7 +51,7 @@ class transferServer(threading.Thread):
                         self.logger.info("Download %s for client %s finished successfully", transfer.id, self.ip)
                 if transfer.type == "UP":
                     if not transfer.doUpload():
-                        self.logger.error("Upload %s from client %s failed.", transfer.id, self.ip)
+                        self.logger.error("Upload %s from client %s interrupted.", transfer.id, self.ip)
                     else:
                         self.logger.info("Upload %s for client %s finished successfully", transfer.id, self.ip)
                 self.lock.acquire(True)
@@ -71,4 +71,3 @@ class transferServer(threading.Thread):
             self.logger.info("Transfer client %s dropped connection", self.ip)
 
         self.logger.info("Transfer client %s disconnected", self.ip)
-        #self.logger.error("Transfer process still alive after system exit!!!")
