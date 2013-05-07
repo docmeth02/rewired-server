@@ -6,6 +6,7 @@ import time
 import sys
 import socket
 import os
+from traceback import format_exc
 
 
 class commandHandler():
@@ -116,12 +117,15 @@ class commandHandler():
                     ip = aclient.user.ip
                     host = aclient.user.host
                     user = aclient.user.user
-                response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) + str(aclient.user.idle) +\
-                chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
-                str(aclient.user.nick) + chr(28) + str(user) + chr(28) + str(ip) + chr(28) +\
-                str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
-                self.parent.sendData(response)
-
+                try:
+                    response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) + str(aclient.user.idle) +\
+                        chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
+                        str(aclient.user.nick) + chr(28) + str(user) + chr(28) + str(ip) + chr(28) +\
+                        str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
+                    self.parent.sendData(response)
+                except Exception as e:
+                    self.logger.debug("WHO Error: %s %s", str(e), format_exc())
+                    continue
         self.parent.sendData('311 ' + str(chatid) + chr(4))  # send userlist done
         return 1
 
@@ -728,10 +732,9 @@ class commandHandler():
             self.logger.debug("got command %s from %s", command, self.parent.user.ip)
             try:
                 result = getattr(self, str(command).upper())(parameters)
-            except AttributeError:
-                print sys.exc_info()
-                self.logger.error("unkown command %s from %s", command, self.parent.user.ip)
-                self.parent.sendData('502 Command Not Implemented' + chr(4))
+            except Exception as e:
+                self.logger.error("Error %s %s", str(e), format_exc())
+                self.reject(500)
                 pass
 
             if command != "PING" and self.parent.user.loginDone:
