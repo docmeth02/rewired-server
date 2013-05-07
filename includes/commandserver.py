@@ -112,6 +112,8 @@ class commandServer(threading.Thread):
         return 1
 
     def logOut(self):
+        if not self.id:
+            return
         self.handler.leaveChat(1)
         self.lock.acquire()
         self.parent.clients.pop(self.id)
