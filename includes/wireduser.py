@@ -125,23 +125,22 @@ class wiredUser():
         userinfo += str(wiredfunctions.wiredTime(self.loginTime)) + chr(28)
         userinfo += str(wiredfunctions.wiredTime(self.lastActive)) + chr(28)
         ## add running transfer check here
-        transfers = self.parent.getAllTransfers()
         ul = ""
         dl = ""
+        transfers = self.ownTransfers()
         for id, transfer in transfers.items():
-            if int(self.id) == int(transfer.userid):
-                if not transfer.active:
-                    break  # this is only a queued transfer
-                if transfer.type == "DOWN":
-                    if dl:
-                        dl += chr(29)
-                    dl += str(transfer.file) + chr(30) + str(transfer.tx) + chr(30) + str(transfer.size) +\
-                    chr(30) + str(transfer.txRate)
-                if transfer.type == "UP":
-                    if ul:
-                        ul += chr(29)
-                    ul += str(transfer.file) + chr(30) + str(transfer.rx) + chr(30) +\
-                    str(transfer.size) + chr(30) + str(transfer.rxRate)
+            if not transfer.active:
+                break  # this is only a queued transfer
+            if transfer.type == "DOWN":
+                if dl:
+                    dl += chr(29)
+                dl += str(transfer.file) + chr(30) + str(transfer.bytesdone) + chr(30) + str(transfer.size) +\
+                chr(30) + str(transfer.rate)
+            if transfer.type == "UP":
+                if ul:
+                    ul += chr(29)
+                ul += str(transfer.file) + chr(30) + str(transfer.bytesdone) + chr(30) +\
+                str(transfer.size) + chr(30) + str(transfer.rate)
 
         if dl:
             userinfo += dl + chr(28)
@@ -162,6 +161,29 @@ class wiredUser():
         newstatus += str(self.nick) + chr(28)
         newstatus += str(self.status)
         return newstatus
+
+    def ownTransfers(self):
+        mytransfers = {}
+        transfers = self.parent.getAllTransfers()
+
+        for id, transfer in transfers.items():
+            if int(self.id) == int(transfer.userid):
+                mytransfers[id] = transfer
+        return mytransfers
+
+    def updateTransfers(self):
+        transfers = self.ownTransfers()
+        for id, transfer in transfers.items():
+            if transfer.type == "DOWN":
+                if transfer.limit != self.privs.downloadSpeed:
+                    transfer.limit = self.privs.downloadSpeed
+                    self.logger.debug("Modified speedlimit for download %s", transfer.id)
+
+            if transfer.type == "UP":
+                if transfer.limit != self.privs.uploadSpeed:
+                    transfer.limit = self.privs.uploadSpeed
+                    self.logger.debug("Modified speedlimit for upload %s", transfer.id)
+
 
 
 class wiredPrivs():

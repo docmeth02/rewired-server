@@ -120,28 +120,34 @@ def loadConfig(confFile):
     from configobj import ConfigObj
     from validate import Validator
     default = """serverName = string(default="A re:Wired Server")
-    cert = string(default="/opt/rewired/cert.pem")
-    logFile = string(default="/opt/rewired/logfile")
+    cert = string(default="cert.pem")
+    logFile = string(default="logfile")
     userIdleTime = integer(default=600)
-    dbFile = string(default="/opt/rewired/rewiredDB.db")
+    pingTimeout = integer(default=600)
+    dbFile = string(default="rewiredDB.db")
     doIndex = boolean(default=True)
-    fileRoot =string(default="/opt/rewired/files")
+    fileRoot =string(default="files")
     indexInterval = integer(default=1800)
     host = string(default="0.0.0.0")
     serverDesc = string(default="A re:Wired Server")
     port = integer(default=2000)
-    serverBanner = string(default="/opt/rewired/banner.png")
+    serverBanner = string(default="data/banner.png")
     trackerRegister = boolean(default=False)
-    trackerUrl = list(default=list("wired.zankasoftware.com", "wired.zapto.org", "joshuamac.homeip.net"))
+    trackerUrl = list(default=list("wired.zankasoftware.com", "wired.zapto.org"))
     trackerDNS = string(default="")
     trackerCategory = string(default="")
     trackerBandwidth = integer(default=1000000)
-    serverPidFile = string(default="/opt/rewired/server.pid")
+    serverPidFile = string(default="server.pid")
     guestOn = boolean(default=True)
+    adminOn = boolean(default=True)
+    # Exclude file or directories by patterns. *.iso, moo*, Icon
+    excludePatterns = list(default=list("Icon"))
+    # Level of client isolation: off/moderate/paranoid
+    securityModel = string(default="moderate")
     # loglevels: debug, info, warning, error, none
     logLevel = string(default=debug)"""
     spec = default.split("\n")
-    config = ConfigObj(confFile, list_values=False, stringify=True, configspec=spec)
+    config = ConfigObj(confFile, list_values=True, stringify=True, configspec=spec)
     validator = Validator()
     config.validate(validator, copy=True)
     config.filename = confFile
@@ -159,6 +165,8 @@ def loadConfig(confFile):
         except:
             print "Failed to create server cert: " + str(config['cert'])
     config['serverStarted'] = time()
+    if type(config['serverDesc']) is list:
+        config['serverDesc'] = ', '.join(config['serverDesc'])
     config['appVersion'] = "20130427A2"
     config['appName'] = "re:wired Server"
     config['banner'] = readBanner(config['serverBanner'])
