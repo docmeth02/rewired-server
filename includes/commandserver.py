@@ -47,7 +47,7 @@ class commandServer(threading.Thread):
 
     def run(self):
             self.logger.info("Incoming connection form %s", self.user.ip)
-            self.socket.settimeout(.1)
+            self.socket.settimeout(1)
 
             while not self.shutdown:
                 data = ""
@@ -57,7 +57,7 @@ class commandServer(threading.Thread):
                     try:
                         char = self.socket.recv(1)
                     except ssl.SSLError as e:
-                        if e.message == 'The read operation timed out':
+                        if str(e) == 'The read operation timed out':
                             pass
                         else:
                             self.logger.debug("Caught SSLError: %s" % e)
@@ -67,14 +67,13 @@ class commandServer(threading.Thread):
                         self.logger.debug("Caught socket.error")
                         self.shutdown = 1
                         break
-
                     if char:
                         data += char
-                    elif char == '':  # a disconnected socket returns an empty string on read
+                    elif char == "":
                         self.shutdown = 1
                         break
                     else:
-                        time.sleep(0.1)
+                        continue
                 if not self.shutdown:
                     response = self.handler.gotdata(data)
             self.exit()
