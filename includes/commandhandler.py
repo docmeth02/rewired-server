@@ -6,6 +6,7 @@ import time
 import sys
 import socket
 import os
+from traceback import format_exc
 
 
 class commandHandler():
@@ -117,15 +118,21 @@ class commandHandler():
         for aid, aclient in sorted(userlist.items(), key=lambda x: x):
                 ip = ""
                 host = ""
-                if self.parent.user.checkPrivs("getUserInfo"):
+                user = ""
+                if (self.parent.user.checkPrivs("getUserInfo") and 'MODERATE' in self.config['securityModel'].upper())\
+                        or 'OFF' in self.config['securityModel'].upper():
                     ip = aclient.user.ip
                     host = aclient.user.host
-                response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) + str(aclient.user.idle) +\
-                    chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
-                    str(aclient.user.nick) + chr(28) + str(aclient.user.user) + chr(28) + str(ip) + chr(28) +\
-                    str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
-                self.parent.sendData(response)
-
+                    user = aclient.user.user
+                try:
+                    response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) + str(aclient.user.idle) +\
+                        chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
+                        str(aclient.user.nick) + chr(28) + str(user) + chr(28) + str(ip) + chr(28) +\
+                        str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
+                    self.parent.sendData(response)
+                except Exception as e:
+                    self.logger.debug("WHO Error: %s %s", str(e), format_exc())
+                    continue
         self.parent.sendData('311 ' + str(chatid) + chr(4))  # send userlist done
         return 1
 
@@ -549,6 +556,7 @@ class commandHandler():
             self.logger.info("%s deleted file %s", self.parent.user.user, parameters[0])
             self.wiredlog.log_event('DELETE', {'USER': self.parent.user.user, 'NAME': parameters[0]})
             return 1
+        self.reject(500)
         self.logger.error("server failed to delete file %s", parameters[0])
         return 0
 
@@ -610,8 +618,7 @@ class commandHandler():
         transfer = wiredtransfer.wiredTransfer(self)
         try:
             transfer.userid = self.parent.id
-            transfer.txLimit = int(self.parent.user.privs.downloadSpeed)
-            transfer.rxLimit = int(self.parent.user.privs.uploadSpeed)
+            transfer.limit = int(self.parent.user.privs.downloadSpeed)
             transfer.file = parameters[0]
             transfer.id = transfer.genID()
             transfer.offset = int(parameters[1])
@@ -633,8 +640,7 @@ class commandHandler():
             return 0
         transfer = wiredtransfer.wiredTransfer(self)
         transfer.userid = self.parent.id
-        transfer.txLimit = int(self.parent.user.privs.downloadSpeed)
-        transfer.rxLimit = int(self.parent.user.privs.uploadSpeed)
+        transfer.limit = int(self.parent.user.privs.uploadSpeed)
         transfer.file = parameters[0]
         transfer.checksum = str(parameters[2])
         # check for already existing files
@@ -758,10 +764,9 @@ class commandHandler():
             self.logger.debug("got command %s from %s", command, self.parent.user.ip)
             try:
                 result = getattr(self, str(command).upper())(parameters)
-            except AttributeError:
-                print sys.exc_info()
-                self.logger.error("unkown command %s from %s", command, self.parent.user.ip)
-                self.parent.sendData('502 Command Not Implemented' + chr(4))
+            except Exception as e:
+                self.logger.error("Error %s %s", str(e), format_exc())
+                self.reject(500)
                 pass
 
             if command != "PING" and self.parent.user.loginDone:

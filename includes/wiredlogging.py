@@ -14,7 +14,7 @@ class wiredlog():
         self.shutdown = 0
         self.pointer = None
         self.buffer = []
-        self.committimer = Timer(15, self.commit_to_db)
+        self.committimer = Timer(60, self.commit_to_db)
         self.committimer.start()
 
     def openlog(self):
@@ -71,7 +71,6 @@ class wiredlog():
         if not self.openlog():
             self.logger.error('Failed to open log db')
             return 0
-        self.logger.debug("COMMIT RUN START -> %s events in buffer", len(self.buffer))
         self.lock.acquire()
         for aevent in self.buffer:
             self.pointer.execute("INSERT INTO rewiredlog VALUES (?, ?, ?, ?);", [aevent['TIME'], aevent['USER'],\
@@ -79,9 +78,8 @@ class wiredlog():
         self.conn.commit()
         self.buffer = []
         self.lock.release()
-        self.logger.debug("COMMIT RUN DONE -> %s events in buffer", len(self.buffer))
         self.closelog()
         if not self.shutdown:
-            self.committimer = Timer(15, self.commit_to_db)
+            self.committimer = Timer(60, self.commit_to_db)
             self.committimer.start()
         return 1

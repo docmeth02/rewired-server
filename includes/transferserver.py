@@ -4,7 +4,6 @@ import wireduser
 import wiredtransfer
 from socket import error as SOCKETERROR
 from socket import SHUT_RDWR
-from time import sleep
 
 
 class transferServer(threading.Thread):
@@ -29,102 +28,68 @@ class transferServer(threading.Thread):
 
     def run(self):
         self.logger.info("Incoming connection on transfer port form %s", self.ip)
-        self.transfer = wiredtransfer.wiredTransfer(self)
+        transfer = wiredtransfer.wiredTransfer(self)
         while not self.shutdown or not self.transferDone:
-                data = ""
-                char = 0
-                while char != chr(4) and not self.shutdown or self.transferDone:
-                    char = 0
+            data = self.socket.recv(8192)
+            if not self.doTransfer:
+                if not transfer.startTransfer(data):
+                    #failed to parse command
+                    self.shutdown = 1
+                    self.logger.error("Got invalid command on transfer port from %s", self.ip)
+                    break
+                try:
+                    transfer = self.parent.transferqueue[transfer.id]
+                    transfer.active = 1
+                    transfer.parent = self
                     try:
-                        char = self.socket.recv(1)
-                    except ssl.SSLError:
-                        pass
-                    except socket.error:
-                        self.logger.debug("Caught socket.error")
-                        self.shutdown = 1
+                        self.client = self.parent.clients[int(transfer.userid)]
+                    except KeyError:
+                        self.logger.error("got transfer for invalid user id %s", transfer.userid)
+                        self.shutdown =1
                         break
-
-                    if char:
-                        data += char
-                    if char == '':  # a disconnected socket returns an empty string on read
-                        self.shutdown = 1
-
-                if not self.shutdown:
-                    if not self.process(data):
-                        self.shutdown = 1
-                        self.shutdownSocket()
-                        raise SystemExit
-                sleep(0.25)
-        self.shutdownSocket()
-
-    def process(self, data):
-        if not self.doTransfer:
-            if not self.transfer.startTransfer(data):
-                #failed to parse command
-                self.shutdown = 1
-                self.logger.error("Got invalid command on transfer port from %s", self.ip)
-                self.shutdownSocket()
-
-            try:
-                self.transfer = self.parent.transferqueue[self.transfer.id]
-                self.transfer.active = 1
-                self.transfer.parent = self
-            except KeyError:
-                # probably send error here - not a valid transfer id
-                self.logger.error("Invalid transfer id %s from %s", self.transfer.id, self.ip)
-                self.shutdown = 1
-                self.shutdownSocket()
-
-            self.logger.debug("Found transfer id %s for %s", self.transfer.id, self.ip)
-            self.doTransfer = 1
-            try:
-                if self.transfer.type == "DOWN":
-                    if not self.transfer.doDownload():
-                        self.logger.error("Download %s to client %s failed.", self.transfer.id, self.ip)
+                except KeyError:
+                    # probably send error here - not a valid transfer id
+                    self.logger.error("Invalid transfer id %s from %s", transfer.id, self.ip)
+                    self.shutdown = 1
+                    break
+                self.logger.debug("Found transfer id %s for %s", transfer.id, self.ip)
+                self.doTransfer = 1
+                if transfer.type == "DOWN":
+                    if not transfer.doDownload():
+                        self.logger.error("Download %s to client %s failed.", transfer.id, self.ip)
                         self.wiredlog.log_event('UPLOAD', {'RESULT': 'ABORTED', 'USER': self.client.user.user,
-                                                           'NICK': self.client.user.nick, 'FILE': self.transfer.tx,
-                                                           'SIZE': self.transfer.size})
+                                                           'NICK': self.client.user.nick, 'FILE': transfer.file,
+                                                           'SIZE': transfer.bytesdone})
                     else:
-                        self.logger.info("Download %s for client %s finished successfully", self.transfer.id, self.ip)
+                        self.logger.info("Download %s for client %s finished successfully", transfer.id, self.ip)
                         self.wiredlog.log_event('DOWNLOAD', {'RESULT': 'COMPLETE', 'USER': self.client.user.user,
-                                                             'NICK': self.client.user.nick, 'FILE': self.transfer.file,
-                                                             'SIZE': self.transfer.tx})
-            except:
-                self.logger.debug("Transfer debug MARK1")
-                self.shutdownSocket()
-
-            try:
-                if self.transfer.type == "UP":
-                    if not self.transfer.doUpload():
-                        self.logger.error("Upload %s from client %s failed.", self.transfer.id, self.ip)
+                                                             'NICK': self.client.user.nick, 'FILE': transfer.file,
+                                                             'SIZE': transfer.bytesdone})
+                if transfer.type == "UP":
+                    if not transfer.doUpload():
+                        self.logger.error("Upload %s from client %s interrupted.", transfer.id, self.ip)
                         self.wiredlog.log_event('UPLOAD', {'RESULT': 'ABORTED', 'USER': self.client.user.user,
-                                                           'NICK': self.client.user.nick, 'FILE': self.transfer.rx,
-                                                           'SIZE': self.transfer.size})
+                                                           'NICK': self.client.user.nick, 'FILE': transfer.file,
+                                                           'SIZE': transfer.bytesdone})
                     else:
-                        self.logger.info("Upload %s for client %s finished successfully", self.transfer.id, self.ip)
+                        self.logger.info("Upload %s for client %s finished successfully", transfer.id, self.ip)
                         self.wiredlog.log_event('UPLOAD', {'RESULT': 'COMPLETE', 'USER': self.client.user.user,
-                                                           'NICK': self.client.user.nick, 'FILE': self.transfer.file,
-                                                           'SIZE': self.transfer.rx})
-            except:
-                self.logger.debug("Transfer debug MARK2")
-                self.shutdownSocket()
-
-    def shutdownSocket(self):
-        try:
-            self.lock.acquire(True)
-            self.parent.transferqueue.pop(self.transfer.id, None)
-            self.lock.release()
-            self.shutdown = 1
-            self.transferDone = 1
-            self.logger.debug("Exit transfer thread")
-        except:
-            self.logger.error("Failed to remove transfer %s from queue", self.transfer.id)
-            pass
+                                                           'NICK': self.client.user.nick, 'FILE': transfer.file,
+                                                           'SIZE': transfer.bytesdone})
+                self.lock.acquire(True)
+                self.parent.transferqueue.pop(transfer.id, None)
+                self.lock.release()
+                self.shutdown = 1
+                self.transferDone = 1
+                self.logger.debug("Exit tranfer thread")
+                break
+            if not data:
+                self.shutdown = 1
+                break
         try:
             self.socket.shutdown(SHUT_RDWR)
             self.socket.close()
         except SOCKETERROR:
             self.logger.info("Transfer client %s dropped connection", self.ip)
-            raise SystemExit
+
         self.logger.info("Transfer client %s disconnected", self.ip)
-        raise SystemExit
