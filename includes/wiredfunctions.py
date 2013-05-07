@@ -5,7 +5,7 @@ import re
 import base64
 import logging
 import platform
-from time import time, strftime, localtime, timezone
+from time import time, strftime, localtime, timezone, altzone, daylight
 try:
     # This will fail on python > 2.7
     from ssl import OPENSSL_VERSION
@@ -15,7 +15,10 @@ except:
 
 def wiredTime(timestamp):
     parsed = localtime(float(timestamp))
-    offset = utcOffset(timezone)
+    if daylight:  # use offset including DST
+        offset = utcOffset(altzone)
+    else:
+        offset = utcOffset(timezone)
     try:
         parsed = strftime("%Y-%m-%dT%H:%M:%S", parsed) + offset
     except:
@@ -72,7 +75,11 @@ def initLogger(logfile, level):
     if level.upper() == "NONE":
         logFile = 0
     if logFile:
-        filehandler = logging.FileHandler(str(logfile), "a")
+        try:
+            filehandler = logging.FileHandler(str(logfile), "a")
+        except IOError:
+            print "Failed to open Logfile %s" % logfile
+            raise SystemExit
         filehandler.setLevel(filelevel)
         filehandler.setFormatter(formatter)
         log.addHandler(filehandler)
@@ -152,7 +159,7 @@ def loadConfig(confFile):
         except:
             print "Failed to create server cert: " + str(config['cert'])
     config['serverStarted'] = time()
-    config['appVersion'] = "20130204A2"
+    config['appVersion'] = "20130427A2"
     config['appName'] = "re:wired Server"
     config['banner'] = readBanner(config['serverBanner'])
     return config

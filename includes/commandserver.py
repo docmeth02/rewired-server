@@ -6,8 +6,12 @@ import ssl
 import wireduser
 import ipaddr
 from commandhandler import commandHandler
-from dns import resolver, reversename
-from dns.resolver import NXDOMAIN
+try:
+    from dns import resolver, reversename
+    from dns.resolver import NXDOMAIN
+except:
+    print "Failed to load dns lib. Please install python-dnspython."
+    raise SystemExit
 from traceback import format_exception
 
 
@@ -44,9 +48,9 @@ class commandServer(threading.Thread):
         self.lastPing = time.time()
 
     def run(self):
-        try:
             self.logger.info("Incoming connection form %s", self.user.ip)
-            self.socket.settimeout(1)
+            self.socket.settimeout(.1)
+
             while not self.shutdown:
                 data = ""
                 char = 0
@@ -54,8 +58,13 @@ class commandServer(threading.Thread):
                     char = 0
                     try:
                         char = self.socket.recv(1)
-                    except ssl.SSLError:
-                        pass
+                    except ssl.SSLError as e:
+                        if e.message == 'The read operation timed out':
+                            pass
+                        else:
+                            self.logger.debug("Caught SSLError: %s" % e)
+                            self.shutdown = 1
+                            break
                     except socket.error:
                         self.logger.debug("Caught socket.error")
                         self.shutdown = 1
@@ -63,32 +72,25 @@ class commandServer(threading.Thread):
 
                     if char:
                         data += char
-                    if char == '':  # a disconnected socket returns an empty string on read
+                    elif char == '':  # a disconnected socket returns an empty string on read
                         self.shutdown = 1
-
+                        break
+                    else:
+                        time.sleep(0.1)
                 if not self.shutdown:
                     response = self.handler.gotdata(data)
+            self.exit()
 
-            self.logger.info("Client %s disconnected", self.user.ip)
-            self.logOut()
-            try:
-                self.socket.shutdown(socket.SHUT_RDWR)
-                self.socket.close()
-            except:
-                pass
-            self.logger.info("CMDhandler process exited")
+    def exit(self):
+        self.logger.info("Client %s disconnected", self.user.ip)
+        self.logOut()
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+            self.socket.close()
         except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            lines = format_exception(exc_type, exc_value, exc_traceback)
-            self.logger.exception(''.join('!! ' + line for line in lines))
-            try:
-                self.shutdown = 1
-                self.logOut()
-                self.socket.shutdown(socket.SHUT_RDWR)
-                self.socket.close()
-            except:
-                pass
             pass
+        self.logger.info("CMDhandler process exited")
+        raise SystemExit
 
     def sendData(self, data):
         try:
@@ -115,7 +117,7 @@ class commandServer(threading.Thread):
     def logOut(self):
         self.handler.leaveChat(1)
         self.lock.acquire()
-        self.parent.clients.pop(self.id, 0)
+        self.parent.clients.pop(self.id)
         self.parent.wiredlog.log_event('LOGOUT', {'USER': self.user.user, 'NICK': self.user.nick})
         self.lock.release()
         return 1

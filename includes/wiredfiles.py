@@ -343,7 +343,7 @@ class LISTgetter(threading.Thread):
         self.shutdown()
 
     def shutdown(self):
-        self.logger.debug("EXIT LISTgetter Thread")
+        #self.logger.debug("EXIT LISTgetter Thread")
         sys.exit()
 
 
@@ -384,5 +384,5 @@ class LISTRECURSIVEgetter(threading.Thread):
         self.shutdown()
 
     def shutdown(self):
-        self.logger.debug("EXIT LISTRECURSIVEgetter Thread")
+        #self.logger.debug("EXIT LISTRECURSIVEgetter Thread")
         sys.exit()

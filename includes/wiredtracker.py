@@ -4,7 +4,11 @@ import threading
 import ssl
 import sys
 import wireduser
-from M2Crypto import X509, RSA
+try:
+    from M2Crypto import X509, RSA
+except:
+    print "Failed to load required module. Please install python M2crypto."
+    raise SystemExit
 
 
 class wiredTracker(threading.Thread):
@@ -59,6 +63,8 @@ class wiredTracker(threading.Thread):
                         break
                     self.retry += 1
                     time.sleep(1)
+            else:
+                time.sleep(1)
         self.disconnectTCPSocket()
 
         while self.keepalive:

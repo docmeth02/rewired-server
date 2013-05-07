@@ -1,4 +1,9 @@
-from M2Crypto import X509, EVP, RSA, ASN1
+try:
+    from M2Crypto import X509, EVP, RSA, ASN1
+except:
+    print("Failed to load required module. Please install python M2crypto.")
+    raise SystemExit
+
 from time import time
 
 
