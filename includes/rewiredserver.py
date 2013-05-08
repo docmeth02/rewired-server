@@ -299,12 +299,10 @@ class reWiredServer():
 
     def checkIndexer(self):
         if not self.indexer.isAlive():
-            print "Indexer died on us!"
+            self.logger.error("Indexer thread died. Restarting it ...")
             self.indexer.join(5)
             del self.indexer
             self.indexer = wiredindex.wiredIndex(self)
             self.indexer.start()
             return 0
-        else:
-            print "ALL GOOD!"
         return 1
