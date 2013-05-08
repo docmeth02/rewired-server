@@ -145,7 +145,12 @@ def loadConfig(confFile):
     # Level of client isolation: off/moderate/paranoid
     securityModel = string(default="moderate")
     # loglevels: debug, info, warning, error, none
-    logLevel = string(default=debug)"""
+    logLevel = string(default=debug)
+    webIfEnable = boolean(default=True)
+    webIfBind = string(default="0.0.0.0")
+    webIfPort =  integer(default=8443)
+    webIfUsers = list(default=list("admin"))
+    """
     spec = default.split("\n")
     config = ConfigObj(confFile, list_values=True, stringify=True, configspec=spec)
     validator = Validator()

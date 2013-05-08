@@ -56,6 +56,16 @@ class reWiredServer():
             self.initTrackers()
             self.logger.debug("%s tracker threads started", len(self.tracker))
 
+        # start http server
+        if self.config['webIfEnable']:
+            try:
+                from rewiredwebserver import rewiredHTTPServer
+                self.httpd = rewiredHTTPServer.rewiredHTTPServer(self)
+                self.httpd.start()
+                self.logger.info("Starting web interface on %s:%s", self.config['webIfBind'], self.config['webIfPort'])
+            except Exception as e:
+                print e
+
         # create listening sockets
         try:
             self.commandSock = self.open_command_socket()
@@ -127,6 +137,8 @@ class reWiredServer():
         if self.tracker:
             for atracker in self.tracker:
                 atracker.keepalive = 0
+        if hasattr(self, 'httpd'):
+            self.httpd.shutdown = 1
         if hasattr(self, 'commandSock'):
             self.commandSock.close()
         if hasattr(self, 'transferSock'):
