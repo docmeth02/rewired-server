@@ -62,13 +62,15 @@ def run(markup, parent, query):
     page.h2('Status')
     activeUsers = handler.get_active_users()
     activeTransfers = handler.get_active_transfers()
+    uptime = handler.get_server_uptime()
+    totaltransfers = handler.get_total_transfers()
     content = [
         ['Connected Users', '<span class="badge">%s</span>' % activeUsers],
         ['Active Downloads', '<span class="badge">%s</span>' % activeTransfers['down']],
         ['Active Uploads', '<span class="badge">%s</span>' % activeTransfers['up']],
-        ['<br /><span class="h4"><strong>Server uptime: 01:20:32</strong></span>'],
+        ['<br /><span class="h4"><strong>Server uptime:</strong></span><p>%s</p>' % uptime],
         ['Total Users', '<span class="badge">%s</span>' % handler.get_total_users()],
-        ['Total Transfers', '<span class="badge">WIP</span>']
+        ['Total Transfers', '<span class="badge">%s</span>' % totaltransfers]
     ]
     page = template.table(page, False, content)
     page.div.close()

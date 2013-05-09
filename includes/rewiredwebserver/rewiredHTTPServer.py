@@ -3,7 +3,7 @@ from ssl import wrap_socket
 from base64 import b64encode, b64decode
 from urlparse import urlparse, parse_qs
 from mimetypes import guess_type
-from time import sleep
+from time import sleep, time
 from hashlib import sha1
 import markup
 import select
@@ -67,6 +67,16 @@ class rewiredWebHandler:
     def get_total_users(self):
         return self.rewiredserver.globalUserID
 
+    def get_server_uptime(self):
+        seconds = time() - self.config['serverStarted']
+        days = int(seconds // (3600 * 24))
+        hours = int((seconds // 3600) % 24)
+        minutes = int((seconds // 60) % 60)
+        seconds = int(seconds % 60)
+        return "%s days, %s:%s:%s" % (days, str(hours).zfill(2), str(minutes).zfill(2), str(seconds).zfill(2))
+
+    def get_total_transfers(self):
+        return self.rewiredserver.totaltransfers
 
 class rewiredRequestHandler(BaseHTTPRequestHandler):
     def __init__(self, request, client_address, server, parent, webroot, config):

@@ -1,6 +1,7 @@
 def header(page, title):
     page.init(title="%s web interface" % title,
-                    css=('//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css'),
+                    css=('//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css',
+                         'css/styles.css'),
                     metainfo = {'viewport': 'width=device-width, initial-scale=1.0',
                     'description': '', 'author': 'docmeth02'},
                     charset = 'UTF-8',
