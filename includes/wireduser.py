@@ -24,12 +24,14 @@ class wiredUserDB():
         self.loadUserDB()
         return 1
 
-    def checkLogin(self, user, password):
+    def checkLogin(self, user, password, quiet = False):
         for auser in self.users:
             if auser[0] == user:
-                self.logger.debug("Found user %s", user)
+                if not quiet:
+                    self.logger.debug("Found user %s", user)
                 if auser[1] == str(password):
-                    self.logger.info("Auth successful for user %s", user)
+                    if not quiet:
+                        self.logger.info("Auth successful for user %s", user)
                     return auser
                 else:
                     self.logger.error("Invalid password supplied for user %s", user)

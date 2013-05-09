@@ -25,8 +25,7 @@ class rewiredWebHandler:
     def checkLogin(self, user, passw):
         hash = sha1()
         hash.update(str(passw))
-        print "User: %s Pass: %s" % (user, hash.hexdigest().lower())
-        if self.rewiredserver.users.checkLogin(user, hash.hexdigest().lower()):
+        if self.rewiredserver.users.checkLogin(user, hash.hexdigest().lower(), True):
             return 1
         return 0
 
@@ -77,6 +76,7 @@ class rewiredWebHandler:
 
     def get_total_transfers(self):
         return self.rewiredserver.totaltransfers
+
 
 class rewiredRequestHandler(BaseHTTPRequestHandler):
     def __init__(self, request, client_address, server, parent, webroot, config):
@@ -156,6 +156,7 @@ class rewiredRequestHandler(BaseHTTPRequestHandler):
                     self.defaultHeaders(False)
                     if data:
                         self.wfile.write(data)
+                        self.logger.debug("webif: served module %s to user %s", modulename, self.user)
                     return
                 else:
                     self.logger.error("Invalid module %s", modulename)
@@ -164,7 +165,7 @@ class rewiredRequestHandler(BaseHTTPRequestHandler):
             ## plain file from webroot
             abspath = os.path.join(self.webroot, self.path)
             if not os.path.exists(abspath):
-                print "404: %s" % abspath
+                self.logger.error("webif: 404: %s", abspath)
                 self.sendError(404)
                 return
             try:
@@ -176,7 +177,7 @@ class rewiredRequestHandler(BaseHTTPRequestHandler):
             self.mimetype = guess_type(abspath)
             self.defaultHeaders()
             self.wfile.write(content)
-            self.logger.debug("Served %s (%s)", abspath, self.mimetype[0])
+            self.logger.debug("webif: Served %s (%s)", abspath, self.mimetype[0])
             pass
         else:
             self.authHeaders()
@@ -222,7 +223,6 @@ class rewiredRequestHandler(BaseHTTPRequestHandler):
             asset = __import__("webroot.modules.%s" % name)
             asset = getattr(asset.modules, name)
         except ImportError as e:
-            print "Nope: %s" % e
             return 0
         return asset
 
