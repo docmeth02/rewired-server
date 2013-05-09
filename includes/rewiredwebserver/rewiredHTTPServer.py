@@ -30,6 +30,43 @@ class rewiredWebHandler:
             return 1
         return 0
 
+    def check_indexer(self):
+        if not self.config['doIndex']:
+            return 0
+        if not self.rewiredserver.indexer.isAlive():
+            return 'crashed'
+        return "ok"
+
+    def check_tracker(self):
+        if not self.config['trackerRegister']:
+            return 0
+        count = 0
+        for key, atracker in enumerate(self.rewiredserver.tracker):
+            if not atracker.isAlive():
+                return "crashed"
+            count += 1
+        return count
+
+    def get_platform(self):
+        from includes import wiredfunctions
+        return wiredfunctions.getPlatform()
+
+    def get_active_users(self):
+        return len(self.rewiredserver.clients)
+
+    def get_active_transfers(self):
+        up = 0
+        down = 0
+        for akey, aitem in self.rewiredserver.transferqueue.items():
+            if aitem.type == "UP":
+                up += 1
+            else:
+                down += 1
+        return {'up': up, 'down': down}
+
+    def get_total_users(self):
+        return self.rewiredserver.globalUserID
+
 
 class rewiredRequestHandler(BaseHTTPRequestHandler):
     def __init__(self, request, client_address, server, parent, webroot, config):

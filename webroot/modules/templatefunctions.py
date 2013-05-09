@@ -41,3 +41,24 @@ def nav(page, title, user, active):
 def close(page):
     page.div.close()
     return page
+
+
+def table(page, heading, content):
+    page.table(class_="table table-condensed")
+    if heading:
+        page.thead()
+        page.tr()
+        for item in heading:
+            page.th(str(item))
+        page.tr.close()
+        page.thead.close()
+    page.tbody()
+    if content:
+        for arow in content:
+            page.tr()
+            for item in arow:
+                page.td(item)
+            page.tr.close()
+    page.tbody.close()
+    page.table.close()
+    return page
