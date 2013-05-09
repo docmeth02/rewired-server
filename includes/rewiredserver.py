@@ -37,6 +37,7 @@ class reWiredServer():
         self.transferqueue = {}
         self.binpath = path[0] + sep
         self.threadDebugtimer = 0
+        self.totaltransfers = 0
         if not self.configfile:
             self.configfile = self.binpath + "server.conf"
 

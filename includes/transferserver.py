@@ -56,6 +56,7 @@ class transferServer(threading.Thread):
                         self.logger.info("Upload %s for client %s finished successfully", transfer.id, self.ip)
                 self.lock.acquire(True)
                 self.parent.transferqueue.pop(transfer.id, None)
+                self.parent.totaltransfers += 1
                 self.lock.release()
                 self.shutdown = 1
                 self.transferDone = 1
