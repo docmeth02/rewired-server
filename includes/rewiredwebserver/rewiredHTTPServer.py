@@ -4,10 +4,11 @@ from base64 import b64encode, b64decode
 from urlparse import urlparse, parse_qs
 from mimetypes import guess_type
 from time import sleep
+from hashlib import sha1
+import markup
 import select
 import threading
 import os
-from hashlib import sha1
 
 
 class rewiredWebHandler:
@@ -45,9 +46,11 @@ class rewiredRequestHandler(BaseHTTPRequestHandler):
         self.mimetype = ('text/html', None)
         BaseHTTPRequestHandler.__init__(self, request, client_address, server)
 
-    def defaultHeaders(self):
+    def defaultHeaders(self, cache=True):
         self.send_response(200)
         self.send_header("Content-type", self.mimetype[0])
+        if cache:
+            self.send_header('Cache-Control', 'max-age=3600, must-revalidate')
         self.end_headers()
 
     def authHeaders(self):
@@ -84,15 +87,39 @@ class rewiredRequestHandler(BaseHTTPRequestHandler):
             self.parseRequest(self.path)
 
             if not len(self.path):  # empty path -> redirect
-                self.do_Redirect('/index.html')
+                self.do_Redirect('/index.cgi')
                 return
 
+            ## python module
+            if self.path.upper()[len(self.path)-4:] == ".CGI":
+                modulename = self.path.lower()[:(len(self.path)-4)]
+                try:
+                    loader = __import__("webroot.modules.%s" % modulename)
+                    module = getattr(loader.modules, modulename)
+                except ImportError:
+                    self.sendError(500)
+                    self.logger.error("request for invalid module %s", modulename)
+                    return
+                if hasattr(module, 'run'):
+                    try:
+                        data = ""
+                        data = module.run(markup, self, self.query)
+                    except Exception as e:
+                        self.logger.error("Error in module %s: %s", modulename, e)
+                    self.defaultHeaders(False)
+                    if data:
+                        self.wfile.write(data)
+                    return
+                else:
+                    self.logger.error("Invalid module %s", modulename)
+                    return
+
+            ## plain file from webroot
             abspath = os.path.join(self.webroot, self.path)
             if not os.path.exists(abspath):
                 print "404: %s" % abspath
                 self.sendError(404)
                 return
-            ## hook in python parser here
             try:
                 with open(abspath, 'r') as filecontent:
                     content = filecontent.read()
@@ -132,7 +159,6 @@ class rewiredRequestHandler(BaseHTTPRequestHandler):
     def getUser(self, hashstring):
         try:
             hash = hashstring[6:]
-            #self.headers.getheader('Authorization')[6:]
         except IndexError:
             return 0
         string = b64decode(hash)
@@ -143,6 +169,15 @@ class rewiredRequestHandler(BaseHTTPRequestHandler):
         except IndexError:
             return 0
         return 1
+
+    def loadfromwebroot(self, name):
+        try:
+            asset = __import__("webroot.modules.%s" % name)
+            asset = getattr(asset.modules, name)
+        except ImportError as e:
+            print "Nope: %s" % e
+            return 0
+        return asset
 
     def log_message(self, format, *args):
         return
