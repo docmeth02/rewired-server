@@ -5,6 +5,7 @@ from urlparse import urlparse, parse_qs
 from mimetypes import guess_type
 from time import sleep, time
 from hashlib import sha1
+from socket import SOL_SOCKET, SO_REUSEADDR, SO_REUSEPORT
 import markup
 import select
 import threading
@@ -259,6 +260,8 @@ class rewiredHTTPServer(threading.Thread):
         self.webhandler = rewiredWebHandler(self.parent, self.config)
         try:
             self.httpd = HTTPServer((self.config['webIfBind'], int(self.config['webIfPort'])), self.webhandler)
+            self.httpd.socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+            self.httpd.socket.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
             self.httpd.socket = wrap_socket(self.httpd.socket, certfile=self.config['cert'], server_side=True)
         except:
             self.logger.error("rewiredHTTPServer:%s:%s bind failed", self.config['webIfBind'], self.config['webIfPort'])
