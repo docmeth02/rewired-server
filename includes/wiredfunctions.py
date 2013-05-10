@@ -138,7 +138,9 @@ def loadConfig(confFile):
     trackerCategory = string(default="")
     trackerBandwidth = integer(default=1000000)
     serverPidFile = string(default="server.pid")
+    # server will make sure the guest user exists
     guestOn = boolean(default=True)
+    # server will make sure the admin user exists
     adminOn = boolean(default=True)
     # Exclude file or directories by patterns. *.iso, moo*, Icon
     excludePatterns = list(default=list("Icon"))

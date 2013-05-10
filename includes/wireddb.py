@@ -70,12 +70,15 @@ class wiredDB():
         # since there is no check if a table exists try to create basic userdb everytime we open the db
         self.pointer.execute('CREATE TABLE IF NOT EXISTS wiredUsers (name TEXT UNIQUE, password TEXT, groupname \
                              TEXT, type BOOL, privs TEXT, PRIMARY KEY(name))')  # type group/user 0/1
-        self.pointer.execute("INSERT OR IGNORE INTO wiredUsers VALUES (?, ?, ?, ?, ?);",
-                             ["admin", "d033e22ae348aeb5660fc2140aec35850c4da997", '', 1, '1' + chr(28) + '1' +
-                              chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) +
-                              '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' +
-                              chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) +
-                              '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '1'])
+        if self.config['adminOn']:
+            self.pointer.execute("INSERT OR IGNORE INTO wiredUsers VALUES (?, ?, ?, ?, ?);",
+                                 ["admin", "d033e22ae348aeb5660fc2140aec35850c4da997", '', 1, '1' + chr(28) + '1' +
+                                  chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' +
+                                  chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' +
+                                  chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' +
+                                  chr(28) + '1' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' + chr(28) + '0' +
+                                  chr(28) + '1'])
+
         if self.config['guestOn']:
             self.pointer.execute("INSERT OR IGNORE INTO wiredUsers VALUES (?, ?, ?, ?, ?);",
                                  ["guest", "", "", 1, '0' + chr(28) + '0' + chr(28) + '1' + chr(28) + '0' + chr(28) +
