@@ -24,7 +24,7 @@ class wiredIndex(threading.Thread):
         self.nextRun = 0
         self.updateServerSizeIndex()
         self.queryCache = {}
-        self.queryCacheLimit = 500  # max querycache items
+        self.queryCacheLimit = 1000  # max querycache items
         self.queryCacheTTL = 600  # time in seconds query cache items expire after
         self.lastindex = 0
 
@@ -122,18 +122,22 @@ class wiredIndex(threading.Thread):
             self.lock.release()
             self.logger.debug("query cache item EXPIRED %s", path)
 
-        if self.lastindex + 1800 <= time.time():
-            self.logger.info("Index cache EXPIRED on %s", path)
+        if self.config['cachemode'].lower() != "index":
+            self.logger.debug("query cache MISS on %s", path)
             return 0
 
         # get result from index db
+        if self.lastindex + 1800 <= time.time():
+            self.logger.debug("Index cache EXPIRED on %s", path)
+            return 0
+
         self.lock.acquire()
         result = self.db.getDirListing(path)
         self.lock.release()
 
         if result:
             self.logger.debug("index cache HIT on %s", path)
-            if not path in self.queryCache:
+            if not path in self.queryCache:  # add the result to ramcache
                 self.addQueryCache(path, result)
             return result
         self.logger.debug("index cache MISS on %s", path)
@@ -147,20 +151,19 @@ class wiredIndex(threading.Thread):
 
     def pruneQueryCache(self):
         self.lock.acquire()
+        length = len(self.queryCache)
         for key, aitem in self.queryCache.items():
             if aitem['date'] + self.queryCacheTTL <= time.time():
                 self.queryCache.pop(key, 0)
-                self.logger.debug("queryCache prune: %s", key)
                 continue
-            else:
-                self.logger.debug("queryCache still valid: %s", key)
 
         if len(self.queryCache) > self.queryCacheLimit:
             # reduce length to queryCacheLimit
             reducerange = sorted(self.queryCache, key=lambda x: self.queryCache[x]['date'])
             for i in range(len(reducerange) - self.queryCacheLimit):
-                print reducerange[i]
                 self.queryCache.pop(reducerange[i], 0)
 
         self.lock.release()
+        if int(length) - len(self.queryCache):
+            self.logger.debug("pruneQueryCache: Removed %s expired items", (int(length) - len(self.queryCache)))
         return 1

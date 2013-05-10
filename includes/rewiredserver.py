@@ -38,6 +38,7 @@ class reWiredServer():
         self.transferqueue = {}
         self.binpath = path[0] + sep
         self.threadDebugtimer = 0
+        self.totaltransfers = 0
         if not self.configfile:
             self.configfile = self.binpath + "server.conf"
 
@@ -57,6 +58,16 @@ class reWiredServer():
         if self.config['trackerUrl'] and self.config['trackerRegister']:
             self.initTrackers()
             self.logger.debug("%s tracker threads started", len(self.tracker))
+
+        # start http server
+        if self.config['webIfEnable']:
+            try:
+                from rewiredwebserver import rewiredHTTPServer
+                self.httpd = rewiredHTTPServer.rewiredHTTPServer(self)
+                self.httpd.start()
+                self.logger.info("Starting web interface on %s:%s", self.config['webIfBind'], self.config['webIfPort'])
+            except Exception as e:
+                print e
 
         # create listening sockets
         try:
@@ -131,6 +142,8 @@ class reWiredServer():
         if self.tracker:
             for atracker in self.tracker:
                 atracker.keepalive = 0
+        if hasattr(self, 'httpd'):
+            self.httpd.shutdown = 1
         if hasattr(self, 'commandSock'):
             self.commandSock.close()
         if hasattr(self, 'transferSock'):
@@ -291,7 +304,7 @@ class reWiredServer():
 
     def checkIndexer(self):
         if not self.indexer.isAlive():
-            print "Indexer died on us!"
+            self.logger.error("Indexer thread died. Restarting it ...")
             self.indexer.join(5)
             del self.indexer
             self.indexer = wiredindex.wiredIndex(self)

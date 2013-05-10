@@ -13,6 +13,7 @@ class wiredFiles():
         self.parent = parent
         self.rootpath = self.parent.config['fileRoot']
         self.patterns = self.parent.config['excludePatterns']
+        self.cachedlist = self.parent.config['cachedlist']
         self.logger = parent.logger
 
     def getStat(self, target):
@@ -271,41 +272,28 @@ class wiredFiles():
             return 0
         return free
 
-    def oldspaceAvail(self, root):
-        path = str(self.rootpath) + str(root)
-        try:
-            stat = os.statvfs(path)
-        except:
-            return 0
-        return stat.f_frsize * stat.f_bavail
-
     def simpleDirList(self, dir, cached=True, relative=True):
         path = dir
         if relative:
             dir = str(self.rootpath) + str(dir)
-        filelist = []
-        list = 0
-        if cached:
-            list = self.parent.indexer.getCachedDirList(path)
-        if not list:
-            if cached:
-                self.logger.debug("%s DIRECT lookup", path)
-                direct = 1
+        filelist, result, direct = ([], 0, 0)
+        if cached and self.cachedlist:
+            result = self.parent.indexer.getCachedDirList(path)
+        if type(result) != list:
             try:
-                list = os.listdir(dir)
+                result = os.listdir(dir)
             except OSError:
                 self.logger.error("Server failed to open %s", dir)
                 return 0
-        for aitem in list:
-            if aitem[0] != "." and not self.matchPatterns(aitem):
+            if cached and self.cachedlist:
+                self.logger.debug("%s DIRECT lookup", path)
+            direct = 1
+        for aitem in result:
+            if aitem[0:1] != "." and not self.matchPatterns(aitem[0]):
                 filelist.append(aitem)
-        try:
-            if direct:
-                # since we looked it up directly, we add this to the cache now
-                ## add check for caching enabled here
-                self.parent.indexer.addQueryCache(path, filelist)
-        except:
-            pass
+        if direct and self.cachedlist:
+            # since we looked it up directly, we append this to the cache
+            self.parent.indexer.addQueryCache(path, filelist)
         return filelist
 
     def matchPatterns(self, filename):

@@ -138,14 +138,32 @@ def loadConfig(confFile):
     trackerCategory = string(default="")
     trackerBandwidth = integer(default=1000000)
     serverPidFile = string(default="server.pid")
+    # server will make sure the guest user exists
     guestOn = boolean(default=True)
+    # server will make sure the admin user exists
     adminOn = boolean(default=True)
+
+    # use index db to speedup file operations on remote filesystems. DON'T use this if
+    # the majority of your files is stored on local media as it will slow things down for you!
+    cachedlist = boolean(default=False)
+    # set this to either ram or index (where index will first try the ram cache then falls back to index db)
+    cachemode = string(default=ram)
+
     # Exclude file or directories by patterns. *.iso, moo*, Icon
     excludePatterns = list(default=list("Icon"))
+
     # Level of client isolation: off/moderate/paranoid
     securityModel = string(default="moderate")
+
     # loglevels: debug, info, warning, error, none
-    logLevel = string(default=debug)"""
+    logLevel = string(default=debug)
+
+    # builtin webserver control
+    webIfEnable = boolean(default=True)
+    webIfBind = string(default="0.0.0.0")
+    webIfPort =  integer(default=8443)
+    webIfUsers = list(default=list("admin"))
+    """
     spec = default.split("\n")
     config = ConfigObj(confFile, list_values=True, stringify=True, configspec=spec)
     validator = Validator()

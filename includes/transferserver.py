@@ -14,10 +14,8 @@ class transferServer(threading.Thread):
         self.wiredlog = self.parent.wiredlog
         self.client = None
         self.socket = socket
-        self.socket.settimeout(10)
         self.logger = self.parent.logger
         self.shutdown = 0
-        self.transfer = None
         self.transferDone = 0
         self.doTransfer = 0
         self.config = self.parent.config
@@ -78,6 +76,7 @@ class transferServer(threading.Thread):
                                                            'SIZE': transfer.bytesdone})
                 self.lock.acquire(True)
                 self.parent.transferqueue.pop(transfer.id, None)
+                self.parent.totaltransfers += 1
                 self.lock.release()
                 self.shutdown = 1
                 self.transferDone = 1

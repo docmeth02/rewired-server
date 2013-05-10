@@ -133,6 +133,7 @@ class commandHandler():
                 except Exception as e:
                     self.logger.debug("WHO Error: %s %s", str(e), format_exc())
                     continue
+
         self.parent.sendData('311 ' + str(chatid) + chr(4))  # send userlist done
         return 1
 
