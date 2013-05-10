@@ -1,5 +1,5 @@
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
-from ssl import wrap_socket
+from ssl import wrap_socket, SSLError
 from base64 import b64encode, b64decode
 from urlparse import urlparse, parse_qs
 from mimetypes import guess_type
@@ -66,6 +66,20 @@ class rewiredWebHandler:
     def get_total_users(self):
         return self.rewiredserver.globalUserID
 
+    def get_server_size(self):
+        size, skip = (self.rewiredserver.indexer.size, 0)
+        for x in [' bytes', ' KB', ' MB', ' GB']:
+            if size < 1024.0 and size > -1024.0:
+                size = "%3.1f%s" % (size, x)
+                skip = 1
+                break
+            size /= 1024.0
+        if not skip:
+            size = "%3.1f%s" % (size, ' TB')
+
+        return {'Files': self.rewiredserver.indexer.files,
+                'Size': size}
+
     def get_server_uptime(self):
         seconds = time() - self.config['serverStarted']
         days = int(seconds // (3600 * 24))
@@ -91,7 +105,10 @@ class rewiredRequestHandler(BaseHTTPRequestHandler):
         self.path = 0
 
         self.mimetype = ('text/html', None)
-        BaseHTTPRequestHandler.__init__(self, request, client_address, server)
+        try:
+            BaseHTTPRequestHandler.__init__(self, request, client_address, server)
+        except SSLError as e:
+            self.logger.error("rewiredRequestHandler: %s", e)
 
     def defaultHeaders(self, cache=True):
         self.send_response(200)
