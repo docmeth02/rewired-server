@@ -11,6 +11,8 @@ class transferServer(threading.Thread):
         threading.Thread.__init__(self)
         self.lock = threading.Lock()
         self.parent = parent
+        self.wiredlog = self.parent.wiredlog
+        self.client = None
         self.socket = socket
         self.logger = self.parent.logger
         self.shutdown = 0
@@ -37,6 +39,12 @@ class transferServer(threading.Thread):
                     transfer = self.parent.transferqueue[transfer.id]
                     transfer.active = 1
                     transfer.parent = self
+                    try:
+                        self.client = self.parent.clients[int(transfer.userid)]
+                    except KeyError:
+                        self.logger.error("got transfer for invalid user id %s", transfer.userid)
+                        self.shutdown =1
+                        break
                 except KeyError:
                     # probably send error here - not a valid transfer id
                     self.logger.error("Invalid transfer id %s from %s", transfer.id, self.ip)
@@ -47,13 +55,25 @@ class transferServer(threading.Thread):
                 if transfer.type == "DOWN":
                     if not transfer.doDownload():
                         self.logger.error("Download %s to client %s failed.", transfer.id, self.ip)
+                        self.wiredlog.log_event('UPLOAD', {'RESULT': 'ABORTED', 'USER': self.client.user.user,
+                                                           'NICK': self.client.user.nick, 'FILE': transfer.file,
+                                                           'SIZE': transfer.bytesdone})
                     else:
                         self.logger.info("Download %s for client %s finished successfully", transfer.id, self.ip)
+                        self.wiredlog.log_event('DOWNLOAD', {'RESULT': 'COMPLETE', 'USER': self.client.user.user,
+                                                             'NICK': self.client.user.nick, 'FILE': transfer.file,
+                                                             'SIZE': transfer.bytesdone})
                 if transfer.type == "UP":
                     if not transfer.doUpload():
                         self.logger.error("Upload %s from client %s interrupted.", transfer.id, self.ip)
+                        self.wiredlog.log_event('UPLOAD', {'RESULT': 'ABORTED', 'USER': self.client.user.user,
+                                                           'NICK': self.client.user.nick, 'FILE': transfer.file,
+                                                           'SIZE': transfer.bytesdone})
                     else:
                         self.logger.info("Upload %s for client %s finished successfully", transfer.id, self.ip)
+                        self.wiredlog.log_event('UPLOAD', {'RESULT': 'COMPLETE', 'USER': self.client.user.user,
+                                                           'NICK': self.client.user.nick, 'FILE': transfer.file,
+                                                           'SIZE': transfer.bytesdone})
                 self.lock.acquire(True)
                 self.parent.transferqueue.pop(transfer.id, None)
                 self.parent.totaltransfers += 1

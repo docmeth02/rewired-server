@@ -157,6 +157,7 @@ def loadConfig(confFile):
 
     # loglevels: debug, info, warning, error, none
     logLevel = string(default=debug)
+    logdbFile = string(default="rewiredlog.db")
 
     # builtin webserver control
     webIfEnable = boolean(default=True)

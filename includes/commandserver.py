@@ -20,6 +20,7 @@ class commandServer(threading.Thread):
         threading.Thread.__init__(self)
         self.lock = threading.Lock()
         self.parent = parent
+        self.wiredlog = self.parent.wiredlog
         self.socket = parentsocket
         self.logger = self.parent.logger
         self.indexer = self.parent.indexer
@@ -113,9 +114,12 @@ class commandServer(threading.Thread):
         return 1
 
     def logOut(self):
+        if not self.id:
+            return
         self.handler.leaveChat(1)
         self.lock.acquire()
         self.parent.clients.pop(self.id)
+        self.parent.wiredlog.log_event('LOGOUT', {'USER': self.user.user, 'NICK': self.user.nick})
         self.lock.release()
         return 1
 

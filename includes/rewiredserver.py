@@ -5,6 +5,7 @@ import wiredtransfer
 import wireddb
 import wiredindex
 import wiredtracker
+import wiredlogging
 import signal
 import socket
 import ssl
@@ -47,6 +48,7 @@ class reWiredServer():
         self.pid = wiredfunctions.initPID(self.config)
         self.logger.info("Server pid: %s", self.pid)
         self.db = wireddb.wiredDB(self.config, self.logger)
+        self.wiredlog = wiredlogging.wiredlog(self)
         self.news = wirednews.wiredNews(self.db)
         self.news.loadNews()
         self.users = wireduser.wiredUserDB(self.db, self.logger)
@@ -120,6 +122,8 @@ class reWiredServer():
         if self.threadDebugtimer:
             self.threadDebugtimer.cancel()
             self.threadDebugtimer.join()
+        if self.wiredlog:
+            self.wiredlog.stop()
         for key, aclient in self.clients.items():
             self.lock.acquire()
             try:
