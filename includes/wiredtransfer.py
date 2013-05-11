@@ -102,29 +102,24 @@ class wiredTransfer():
         return 0
 
     def process(self, input, output):
-        interval = 1.0
-        data_count = 0
+        interval, data_count, lastbytes, sleep_for = (1.0, 0, 0, 0)
         time_next = time.time() + interval
-        sleep_for = 0
         while not self.parent.shutdown:
             buf = ""
             try:
                 buf = input.read(512)  # smaller chunks = smoother, more accurate
             except:
                 break
-            if len(buf) == 0:  # empty string means dead socket or eof
+            if not buf:  # empty string means dead socket or eof
                 break
             data_count += len(buf)
             if self.limit and data_count >= self.limit * interval:
-                self.bytesdone += int(data_count)
                 lastbytes = data_count
                 data_count = 0
                 sleep_for = time_next - time.time()
                 if sleep_for < 0:
                     sleep_for = 0
-
             elif not self.limit and time.time() >= time_next:
-                self.bytesdone += int(data_count)
                 self.rate = int(data_count)
                 data_count = 0
                 time_next = time.time() + interval
@@ -134,12 +129,17 @@ class wiredTransfer():
                 time_next = time.time() + interval
                 sleep_for = 0
                 self.rate = lastbytes
+            elif self.limit and time.time() > time_next:
+                lastbytes = data_count
+                data_count = 0
+                self.rate = lastbytes
+                time_next = time.time() + interval
             try:
                 output.write(buf)
             except:
                 break
-        if data_count:
-            self.bytesdone += data_count
+
+            self.bytesdone += len(buf)
 
         if self.size == self.bytesdone:
             return 1
