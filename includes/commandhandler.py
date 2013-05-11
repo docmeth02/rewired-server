@@ -524,7 +524,7 @@ class commandHandler():
     ## Files ##
     def LIST(self, parameters):
         wiredfiles.LISTgetter(self, self.parent.user, self.parent.indexer, parameters[0], self.parent.sendData).start()
-        self.wiredlog.log_event('LIST', {'USER': self.parent.user.user, 'DIR': parameters[0]})
+        self.wiredlog.log_event('LIST', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick, 'DIR': parameters[0]})
         return 0
 
     def LISTRECURSIVE(self, parameters):
