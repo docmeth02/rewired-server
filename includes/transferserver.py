@@ -27,6 +27,7 @@ class transferServer(threading.Thread):
     def run(self):
         self.logger.info("Incoming connection on transfer port form %s", self.ip)
         transfer = wiredtransfer.wiredTransfer(self)
+        self.socket.settimeout(30)
         while not self.shutdown or not self.transferDone:
             data = self.socket.recv(8192)
             if not self.doTransfer:
@@ -74,15 +75,12 @@ class transferServer(threading.Thread):
                         self.wiredlog.log_event('UPLOAD', {'RESULT': 'COMPLETE', 'USER': self.client.user.user,
                                                            'NICK': self.client.user.nick, 'FILE': transfer.file,
                                                            'SIZE': transfer.bytesdone})
-                self.lock.acquire(True)
-                self.parent.transferqueue.pop(transfer.id, None)
-                self.parent.totaltransfers += 1
-                self.lock.release()
                 self.shutdown = 1
                 self.transferDone = 1
                 self.logger.debug("Exit tranfer thread")
                 break
             if not data:
+                self.logger.error("Timeout wating for data on transfer port")
                 self.shutdown = 1
                 break
         try:
@@ -91,4 +89,12 @@ class transferServer(threading.Thread):
         except SOCKETERROR:
             self.logger.info("Transfer client %s dropped connection", self.ip)
 
+        try:
+            self.lock.acquire(True)
+            self.parent.transferqueue.pop(transfer.id, None)
+            self.parent.totaltransfers += 1
+            self.lock.release()
+            self.logger.debug("Transferserver: removed %s from server transferlist", transfer.id)
+        except Exception as e:
+            self.logger.error("Transferserver: Error when removing transfer: %s", e)
         self.logger.info("Transfer client %s disconnected", self.ip)
