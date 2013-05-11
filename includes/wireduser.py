@@ -24,7 +24,7 @@ class wiredUserDB():
         self.loadUserDB()
         return 1
 
-    def checkLogin(self, user, password, quiet = False):
+    def checkLogin(self, user, password, quiet=False):
         for auser in self.users:
             if auser[0] == user:
                 if not quiet:
@@ -132,17 +132,17 @@ class wiredUser():
         transfers = self.ownTransfers()
         for id, transfer in transfers.items():
             if not transfer.active:
-                break  # this is only a queued transfer
+                continue  # this is only a queued transfer
             if transfer.type == "DOWN":
                 if dl:
                     dl += chr(29)
                 dl += str(transfer.file) + chr(30) + str(transfer.bytesdone) + chr(30) + str(transfer.size) +\
-                chr(30) + str(transfer.rate)
+                    chr(30) + str(transfer.rate)
             if transfer.type == "UP":
                 if ul:
                     ul += chr(29)
                 ul += str(transfer.file) + chr(30) + str(transfer.bytesdone) + chr(30) +\
-                str(transfer.size) + chr(30) + str(transfer.rate)
+                    str(transfer.size) + chr(30) + str(transfer.rate)
 
         if dl:
             userinfo += dl + chr(28)
@@ -185,7 +185,6 @@ class wiredUser():
                 if transfer.limit != self.privs.uploadSpeed:
                     transfer.limit = self.privs.uploadSpeed
                     self.logger.debug("Modified speedlimit for upload %s", transfer.id)
-
 
 
 class wiredPrivs():
