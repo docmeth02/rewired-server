@@ -20,7 +20,7 @@ $(document).ready(function() {
 </script>"""
     page = markup.page()
     page = template.header(page, title, script)
-    page = template.nav(page, title, parent.user, "Overview")
+    page = template.nav(page, title, parent.user, "Server Log")
     ## overview content
     page.div.close()
     page.div(class_="container")
