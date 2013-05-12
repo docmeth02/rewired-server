@@ -18,6 +18,7 @@ class wiredlog():
         self.pointer = None
         self.buffer = []
         self.debug = 0
+        self.eventcount = None
         self.committimer = Timer(60, self.commit_to_db)
         self.committimer.start()
 
@@ -113,12 +114,15 @@ class wiredlog():
     def event_count(self):
         if not self.openlog():
             return 0
+        if type(self.eventcount) is int:  # we looked this up before and nothing changed since
+            return self.eventcount
         self.pointer.execute('SELECT Count(*) FROM rewiredlog')
         count = self.pointer.fetchone()
         self.closelog()
         if type(count) is tuple:
             count = int(count[0])
         else:
+            self.eventcount = int(count)
             return int(count)
         return count
 
@@ -143,9 +147,11 @@ class wiredlog():
             self.committimer.start()
         if self.debug:
             self.logger.debug("Logger: commited %s out of %s events to db", buffer - len(self.buffer), buffer)
+        if type(self.eventcount) is int:
+            self.eventcount += (buffer - len(self.buffer))
         return 1
 
-    def format_event(self, event):
+    def format_event(self, event, extended=False):
         formated = {}
         eventMap = {
             'LOGIN': ["Login (%s)", ['IP']],
@@ -183,9 +189,14 @@ class wiredlog():
         replace = ()
         string = mapping[0] + " "
         data = loads(event[3])
+
+        if extended and len(mapping[1]) >= 2:
+            formated['STRING'] = string[0: string.find('%s')]
+            string = string[string.find('%s'):]
+
         for avar in mapping[1]:
             value = data[avar]
-            if avar == 'DIR' or avar == 'FILE' or avar == 'NAME' or avar == 'SRC':
+            if (avar == 'DIR' or avar == 'FILE' or avar == 'NAME' or avar == 'SRC') and not extended:
                 # shorten filenames
                 if value != "/":
                     value = basename(value)
@@ -194,7 +205,11 @@ class wiredlog():
             replace += (value,)
         if replace:
             string = string % replace
-        formated['STRING'] = string
+
+        if extended and len(mapping[1]) >= 2:
+            formated['EXTENDED'] = string
+        else:
+            formated['STRING'] = string
 
         user = event[1]
         if 'NICK' in data:
@@ -204,6 +219,9 @@ class wiredlog():
             formated['RESULT'] = data['RESULT'].lower()
 
         formated['DATE'] = strftime("%H:%M:%S", localtime(event[0]))
+
+        if extended:
+            formated['DATE'] = strftime("%d/%m/%Y - %H:%M:%S", localtime(event[0]))
         return formated
 
 

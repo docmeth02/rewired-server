@@ -93,12 +93,15 @@ class rewiredWebHandler:
     def get_total_transfers(self):
         return self.rewiredserver.totaltransfers
 
+    def get_event_count(self):
+        return self.rewiredserver.wiredlog.event_count()
+
     def get_log_events(self, limit=False, filters=False, offset=False):
         data = self.rewiredserver.wiredlog.retrieve_events(limit, filters, offset)
         return data
 
-    def format_event(self, event):
-        return self.rewiredserver.wiredlog.format_event(event)
+    def format_event(self, event, extended=False):
+        return self.rewiredserver.wiredlog.format_event(event, extended)
 
 
 class rewiredRequestHandler(BaseHTTPRequestHandler):

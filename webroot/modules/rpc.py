@@ -33,4 +33,22 @@ def run(markup, parent, query):
         status['totaltransfers'] = totaltransfers
         return dumps({'log': logoutput, 'status': status})
 
+    if query['type'][0] == 'log':
+        count = handler.get_event_count()
+        offset = 0
+        if 'offset' in query:
+            try:
+                offset = int(query['offset'][0])
+            except:
+                pass
+        data = handler.get_log_events(25, 0, offset)
+        if not data:
+            return "{'data': false}"
+        logdata = []
+        for aevent in data:
+            aevent = handler.format_event(aevent, True)
+            if aevent:
+                logdata.append(aevent)
+        return dumps({'count': count, 'log': logdata})
+
     return "{'data': false}"
