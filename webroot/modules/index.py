@@ -71,14 +71,14 @@ def run(markup, parent, query):
     uptime = handler.get_server_uptime()
     totaltransfers = handler.get_total_transfers()
     content = [
-        ['Connected Users:', '<span class="badge"> %s </span>' % activeUsers],
-        ['Active Downloads:', '<span class="badge"> %s </span>' % activeTransfers['down']],
-        ['Active Uploads:', '<span class="badge"> %s </span>' % activeTransfers['up']],
-        ['<br /><span class="h4"><strong>Server uptime:</strong></span><p>%s</p>' % uptime],
-        ['Files:', '<span class="label label-info"> %s </span>' % serverTotal['Files']],
-        ['Size:', '<span class="label label-info"> %s </span>' % serverTotal['Size']],
-        ['Total Users:', '<span class="label label-info"> %s </span>' % handler.get_total_users()],
-        ['Total Transfers:', '<span class="label label-info"> %s </span>' % totaltransfers]
+        ['Connected Users:', '<span class="badge" id="activeUsers"> %s </span>' % activeUsers],
+        ['Active Downloads:', '<span class="badge" id="activeTransfersdown"> %s </span>' % activeTransfers['down']],
+        ['Active Uploads:', '<span class="badge" id="activeTransfersup"> %s </span>' % activeTransfers['up']],
+        ['<br /><span class="h4"><strong>Server uptime:</strong></span><p id="uptime">%s</p>' % uptime],
+        ['Files:', '<span class="label label-info" id="totalfiles"> %s </span>' % serverTotal['Files']],
+        ['Size:', '<span class="label label-info" id="totalsisze"> %s </span>' % serverTotal['Size']],
+        ['Total Users:', '<span class="label label-info" id="totalusers"> %s </span>' % handler.get_total_users()],
+        ['Total Transfers:', '<span class="label label-info" id="totaltransfers"> %s </span>' % totaltransfers]
     ]
     page = template.table(page, False, content)
     page.div.close()

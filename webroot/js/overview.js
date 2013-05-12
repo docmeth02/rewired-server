@@ -1,12 +1,8 @@
 function update() {
-        $.getJSON('/rpc.cgi?type=shortlog', function(data) {
-            $('#spinner').show();
-            if (data.hasOwnProperty('success')) {
-                alert('YUP');
-            }
-            var items = [];
+        $('#spinner').show();
+        $.getJSON('/rpc.cgi?type=overview', function(data) {
             var html = "";
-            $.each(data, function(key, item) {
+            $.each(data['log'], function(key, item) {
                 var row = '<tr><td>'+ item['DATE']+'</td><td>'+ item['STRING'];
                 if (item.hasOwnProperty('RESULT')) {
                     var type = ""
@@ -27,8 +23,12 @@ function update() {
                 }
                 row += '</td><td>' + item['USER'] + '</td></tr>';
                 html += row;
+
             $('#log > tbody').html(html);
-            $('#spinner').hide();
             });
+            $.each(data['status'], function(key, value) {
+                document.getElementById(key).innerHTML = value;
+                });
         });
+        $('#spinner').hide();
         };

@@ -157,11 +157,27 @@ class wiredlog():
             'DOWNLOAD': ["Downloaded %s <br /> (%s)", ['FILE', 'SIZE']],
             'INFO': ["Userinfo on user %s", ['TARGET']],
             'STAT': ["File Info on %s", ['NAME']],
-            'EDITUSER': ["Modified account %s", ['NAME']],
-            'MOVE': ["Moved %s", ['SRC']]
+            'MOVE': ["Moved %s", ['SRC']],
+            'NICK': ["Changed Name: %s", ['NICK']],
+            'STATUS': ["Changed status:<br />%s", ['STATUS']],
+            'POST': ["Posted a news item", []],
+            'CLEARNEWS': ["Cleared server news", []],
+            'BROADCAST': ["Broadcasted a message", []],
+            'TOPIC': ["Changed chat topic: <br />%s", ['TOPIC']],
+            'KICK': ["Kicked user: %s", ['VICTIM']],
+            'BAN': ["Banned user %s for %s", ['VICTIM', 'DURATION']],
+            'CREATEUSER': ["Created user: %s", ['NAME']],
+            'CREATEGROUP': ["Created group: %s", ['NAME']],
+            'DELETEUSER': ["Deleted user: %s", ['NAME']],
+            'DELETEGROUP': ["Deleted group: %s", ['NAME']],
+            'EDITUSER': ["Modified user: %s", ['NAME']],
+            'EDITGROUP': ["Modified group: %s", ['NAME']],
+            'TYPE': ["Changed type of %s to %s", ['NAME', 'TYPE']],
+            'COMMENT': ["Commented on %s", ['NAME']],
+            'FOLDER': ["Created folder: %s", ['NAME']]
         }
         if not event[2] in eventMap:
-            print "Unknown event %s" % event[2]
+            self.logger.error("Unknown event %s" % event[2])
             return 0
         mapping = eventMap[event[2]]
         replace = ()
@@ -171,8 +187,8 @@ class wiredlog():
             value = data[avar]
             if avar == 'DIR' or avar == 'FILE' or avar == 'NAME' or avar == 'SRC':
                 # shorten filenames
-                value = basename(value)
-                pass
+                if value != "/":
+                    value = basename(value)
             elif avar == 'SIZE':
                 value = format_size(int(value))
             replace += (value,)
