@@ -46,6 +46,7 @@ class wiredUserDB():
 class wiredUser():
     def __init__(self, parent):
         self.parent = parent
+        self.config = self.parent.config
         self.logger = parent.logger
         self.activeChats = {}
         self.memberOfGroup = 0
@@ -80,6 +81,8 @@ class wiredUser():
 
     def mapPrivs(self, privstring):
         self.privs.stringToPrivs(privstring)
+        if self.config['disableAdmins']:
+            self.admin = 0
         return 1
 
     def checkIdleNotify(self):
@@ -135,12 +138,12 @@ class wiredUser():
                 if dl:
                     dl += chr(29)
                 dl += str(transfer.file) + chr(30) + str(transfer.bytesdone) + chr(30) + str(transfer.size) +\
-                chr(30) + str(transfer.rate)
+                    chr(30) + str(transfer.rate)
             if transfer.type == "UP":
                 if ul:
                     ul += chr(29)
                 ul += str(transfer.file) + chr(30) + str(transfer.bytesdone) + chr(30) +\
-                str(transfer.size) + chr(30) + str(transfer.rate)
+                    str(transfer.size) + chr(30) + str(transfer.rate)
 
         if dl:
             userinfo += dl + chr(28)
@@ -156,7 +159,10 @@ class wiredUser():
     def buildStatusChanged(self):
         newstatus = str(self.parent.id) + chr(28)
         newstatus += str(self.idle) + chr(28)
-        newstatus += str(self.admin) + chr(28)
+        if self.config['disableAdmins']:
+            newstatus += str(0) + chr(28)
+        else:
+            newstatus += str(self.admin) + chr(28)
         newstatus += str(self.icon) + chr(28)
         newstatus += str(self.nick) + chr(28)
         newstatus += str(self.status)
@@ -183,7 +189,6 @@ class wiredUser():
                 if transfer.limit != self.privs.uploadSpeed:
                     transfer.limit = self.privs.uploadSpeed
                     self.logger.debug("Modified speedlimit for upload %s", transfer.id)
-
 
 
 class wiredPrivs():
