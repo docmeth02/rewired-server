@@ -1,6 +1,7 @@
 function update() {
         $('#spinner').show();
-        $.getJSON('/rpc.cgi?type=overview', function(data) {
+        $.getJSON('/rpc.cgi?type=overview')
+        .done(function(data) {
             var html = "";
             $.each(data['log'], function(key, item) {
                 var row = '<tr><td>'+ item['DATE']+'</td><td>'+ item['STRING'];
@@ -29,6 +30,28 @@ function update() {
             $.each(data['status'], function(key, value) {
                 document.getElementById(key).innerHTML = value;
                 });
+        })
+        .fail(function( jqxhr, textStatus, error ) {
+            if(document.getElementById("ErrorModal")){
+                // we already injected the modal before
+                $('#ErrorModal').modal('show');
+                return;
+            }
+            $('body').append('<div id="ErrorModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby=\
+                "Connection Lost" aria-hidden="true">\
+                <div class="modal-header">\
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>\
+                <h3 id="myModalLabel">Error</h3>\
+                </div>\
+                <div class="modal-body">\
+                <p>Connection to server was lost ...</p>\
+                </div>\
+                <div class="modal-footer">\
+                <button class="btn" data-dismiss="modal" aria-hidden="true">Close</button>\
+                </div>\
+                </div>');
+            $('#ErrorModal').modal('show');
         });
         $('#spinner').hide();
         };
+
