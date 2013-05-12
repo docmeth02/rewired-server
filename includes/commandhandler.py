@@ -545,7 +545,7 @@ class commandHandler():
             wiredfunctions.wiredTime(filelist['modified']) + chr(28) + str(filelist['hash']) +\
             chr(28) + str(comment) + chr(4)
         self.parent.sendData(response)
-        self.wiredlog.log_event('STAT', {'USER': self.parent.user.user, 'NAME': parameters[0]})
+        self.wiredlog.log_event('STAT', {'USER': self.parent.user.user, 'NAME': parameters[0], 'NICK': self.parent.user.nick})
         return 1
 
     def DELETE(self, parameters):

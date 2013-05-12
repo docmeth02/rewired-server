@@ -6,6 +6,7 @@ from mimetypes import guess_type
 from time import sleep, time
 from hashlib import sha1
 from socket import SOL_SOCKET, SO_REUSEADDR
+from traceback import format_exc
 import markup
 import select
 import threading
@@ -92,6 +93,13 @@ class rewiredWebHandler:
     def get_total_transfers(self):
         return self.rewiredserver.totaltransfers
 
+    def get_log_events(self, limit=False, filters=False, offset=False):
+        data = self.rewiredserver.wiredlog.retrieve_events(limit, filters, offset)
+        return data
+
+    def format_event(self, event):
+        return self.rewiredserver.wiredlog.format_event(event)
+
 
 class rewiredRequestHandler(BaseHTTPRequestHandler):
     def __init__(self, request, client_address, server, parent, webroot, config):
@@ -170,10 +178,13 @@ class rewiredRequestHandler(BaseHTTPRequestHandler):
                         data = ""
                         data = module.run(markup, self, self.query)
                     except Exception as e:
-                        self.logger.error("Error in module %s: %s", modulename, e)
+                        self.logger.error("Error in module %s: %s - %s", modulename, e, format_exc())
                     self.defaultHeaders(False)
                     if data:
                         self.wfile.write(data)
+                        if 'rpc' in modulename:
+                            self.logger.debug("RPC call from user %s", self.user)
+                            return
                         self.logger.debug("webif: served module %s to user %s", modulename, self.user)
                     return
                 else:

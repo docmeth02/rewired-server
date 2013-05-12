@@ -44,7 +44,7 @@ class transferServer(threading.Thread):
                         self.client = self.parent.clients[int(transfer.userid)]
                     except KeyError:
                         self.logger.error("got transfer for invalid user id %s", transfer.userid)
-                        self.shutdown =1
+                        self.shutdown = 1
                         break
                 except KeyError:
                     # probably send error here - not a valid transfer id
@@ -56,9 +56,9 @@ class transferServer(threading.Thread):
                 if transfer.type == "DOWN":
                     if not transfer.doDownload():
                         self.logger.error("Download %s to client %s failed.", transfer.id, self.ip)
-                        self.wiredlog.log_event('UPLOAD', {'RESULT': 'ABORTED', 'USER': self.client.user.user,
-                                                           'NICK': self.client.user.nick, 'FILE': transfer.file,
-                                                           'SIZE': transfer.bytesdone})
+                        self.wiredlog.log_event('DOWNLOAD', {'RESULT': 'ABORTED', 'USER': self.client.user.user,
+                                                             'NICK': self.client.user.nick, 'FILE': transfer.file,
+                                                             'SIZE': transfer.bytesdone})
                     else:
                         self.logger.info("Download %s for client %s finished successfully", transfer.id, self.ip)
                         self.wiredlog.log_event('DOWNLOAD', {'RESULT': 'COMPLETE', 'USER': self.client.user.user,

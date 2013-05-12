@@ -5,8 +5,18 @@ def run(markup, parent, query):
     if not template:
         raise ValueError
     title = parent.config['serverName']
+    script = """
+    <script src="/js/overview.js"></script>
+    <script type="text/javascript">
+    $(document).ready(function(){
+        $('#spinner').show();
+        var myVar=setInterval(function(){ $('#log').hide(); update(); $('#log').show(); },60000);
+         update();
+         $('#spinner').hide();
+    });
+        </script>"""
     page = markup.page()
-    page = template.header(page, title)
+    page = template.header(page, title, script)
     page = template.nav(page, title, parent.user, "Overview")
     ## overview content
     page.div(class_="container")
@@ -15,16 +25,11 @@ def run(markup, parent, query):
     page.div(class_="row-fluid")
     page.div(class_="span5 well")
     page.h2("Server Log:")
-    page.p("Recently logged events")
+    spinner = '<img id="spinner" src="css/spinner.gif" alt="spinner"/>'
+    page.p("Recently logged events %s" % spinner)
     heading = ['Date', 'Event', 'User']
-    content = [
-        ['00/00 - 00:00:00', 'dummy data for now', 'docmeth02'],
-        ['05/09 - 13:35:18', 'Started download', 'guest'],
-        ['05/09 - 13:36:01', 'Connected', 'admin'],
-        ['05/09 - 13:36:12', 'Info on user guest', 'admin'],
-        ['05/09 - 13:36:20', 'Kicked user guest', 'admin']
-    ]
-    page = template.table(page, heading, content)
+
+    page = template.table(page, heading, [], 'log')
     page.div.close()
 
     page.div(class_="span3 well")

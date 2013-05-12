@@ -1,4 +1,9 @@
-def header(page, title):
+def header(page, title, footer=False):
+    defaultfooter = """
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/js/bootstrap.min.js"></script>"""
+    if footer:
+        defaultfooter += footer
     page.init(title="%s web interface" % title,
                     css=('//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css',
                          'css/styles.css'),
@@ -6,9 +11,7 @@ def header(page, title):
                     'description': '', 'author': 'docmeth02'},
                     charset = 'UTF-8',
                     doctype = "<!DOCTYPE html>",
-                    footer = """
-                    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
-                    <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/js/bootstrap.min.js"></script>""")
+                    footer = defaultfooter)
     return page
 
 
@@ -44,8 +47,11 @@ def close(page):
     return page
 
 
-def table(page, heading, content):
-    page.table(class_="table table-condensed")
+def table(page, heading, content, id=False):
+    if id:
+        page.table(class_="table table-condensed", id=id)
+    else:
+        page.table(class_="table table-condensed")
     if heading:
         page.thead()
         page.tr()
