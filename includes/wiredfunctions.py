@@ -140,6 +140,8 @@ def loadConfig(confFile):
     serverPidFile = string(default="server.pid")
     guestOn = boolean(default=True)
     adminOn = boolean(default=True)
+    # Disable users allowed to kick/ban top show up red in the userlist
+    disableAdmins = boolean(default=False)
     # Exclude file or directories by patterns. *.iso, moo*, Icon
     excludePatterns = list(default=list("Icon"))
     # Level of client isolation: off/moderate/paranoid
