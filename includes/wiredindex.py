@@ -37,6 +37,8 @@ class wiredIndex(threading.Thread):
         self.logger.info("Exiting indexer thread")
 
     def indexRoot(self):
+        if not self.enabled:
+            return 0
         self.logger.info("Starting index run")
         filehandler = wiredfiles.wiredFiles(self)
         self.logger.debug("Gathering filelist...")
