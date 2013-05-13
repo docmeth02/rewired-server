@@ -123,7 +123,7 @@ class reWiredServer():
             atransfer.parent.socket.shutdown(socket.SHUT_RDWR)
             atransfer.parent.lock.release()
         if self.indexer:
-            self.indexer.keepalive = 0
+            self.indexer.shutdown = 1
         if self.tracker:
             for atracker in self.tracker:
                 atracker.keepalive = 0
