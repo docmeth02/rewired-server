@@ -69,18 +69,18 @@ class rewiredWebHandler:
         return self.rewiredserver.globalUserID
 
     def get_server_size(self):
-        size, skip = (self.rewiredserver.indexer.size, 0)
+        size = self.rewiredserver.indexer.size
+        size = self.format_size(size)
+        return {'Files': self.rewiredserver.indexer.files,
+                'Size': size}
+
+    def format_size(self, size):
         for x in [' bytes', ' KB', ' MB', ' GB']:
             if size < 1024.0 and size > -1024.0:
                 size = "%3.1f%s" % (size, x)
-                skip = 1
-                break
+                return size
             size /= 1024.0
-        if not skip:
-            size = "%3.1f%s" % (size, ' TB')
-
-        return {'Files': self.rewiredserver.indexer.files,
-                'Size': size}
+        return "%3.1f%s" % (size, ' TB')
 
     def get_server_uptime(self):
         seconds = time() - self.config['serverStarted']

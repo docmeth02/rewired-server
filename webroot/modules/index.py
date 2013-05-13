@@ -1,3 +1,7 @@
+from os import getpid
+from resource import getrusage, RUSAGE_SELF, RUSAGE_CHILDREN
+
+
 def run(markup, parent, query):
     handler = parent.parent
     template = parent.loadfromwebroot('templatefunctions')
@@ -55,6 +59,19 @@ def run(markup, parent, query):
         tracker = '<span class="label label-warning">crashed</span>'
     else:
         tracker = '<span class="label label-success">%s registered</span>' % tracker
+
+    pid, memory = (getpid(), 0)
+    try:
+        memory = getrusage(RUSAGE_SELF).ru_maxrss
+        memory += getrusage(RUSAGE_CHILDREN).ru_maxrss
+    except:
+        pass
+    memory = handler.format_size(memory)
+    content = [
+        ['Process ID:', '<span id="pid">%s</span>' % pid],
+        ['Memory usage:', '<span id="memory">%s</span>' % memory]
+        ]
+    page = template.table(page, [''], content)
 
     content = [
         ['File Indexer:', indexer],

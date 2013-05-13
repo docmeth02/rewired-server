@@ -1,5 +1,6 @@
 from json import dumps
-
+from os import getpid
+from resource import getrusage, RUSAGE_SELF, RUSAGE_CHILDREN
 
 def run(markup, parent, query):
     handler = parent.parent
@@ -23,6 +24,14 @@ def run(markup, parent, query):
         activeTransfers = handler.get_active_transfers()
         uptime = handler.get_server_uptime()
         totaltransfers = handler.get_total_transfers()
+        status['pid'] = getpid()
+        memory = 0
+        try:
+            memory = getrusage(RUSAGE_SELF).ru_maxrss
+            memory += getrusage(RUSAGE_CHILDREN).ru_maxrss
+        except:
+            pass
+        status['memory'] = handler.format_size(memory)
         status['activeUsers'] = activeUsers
         status['activeTransfersdown'] = activeTransfers['down']
         status['activeTransfersup'] = activeTransfers['up']
