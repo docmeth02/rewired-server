@@ -1,6 +1,7 @@
 from json import dumps
-from os import getpid
+from os import getpid, name
 from resource import getrusage, RUSAGE_SELF, RUSAGE_CHILDREN
+from platform import system
 
 def run(markup, parent, query):
     handler = parent.parent
@@ -29,6 +30,8 @@ def run(markup, parent, query):
         try:
             memory = getrusage(RUSAGE_SELF).ru_maxrss
             memory += getrusage(RUSAGE_CHILDREN).ru_maxrss
+            if system() == 'Linux':  # bytes on osx, kbytes on linux
+                memory *= 1024
         except:
             pass
         status['memory'] = handler.format_size(memory)

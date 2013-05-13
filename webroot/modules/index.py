@@ -1,5 +1,6 @@
 from os import getpid
 from resource import getrusage, RUSAGE_SELF, RUSAGE_CHILDREN
+from platform import system
 
 
 def run(markup, parent, query):
@@ -64,13 +65,16 @@ def run(markup, parent, query):
     try:
         memory = getrusage(RUSAGE_SELF).ru_maxrss
         memory += getrusage(RUSAGE_CHILDREN).ru_maxrss
+        if system() == 'Linux':  # bytes on osx, kbytes on linux
+            memory *= 1024
+
     except:
         pass
     memory = handler.format_size(memory)
     content = [
         ['Process ID:', '<span id="pid">%s</span>' % pid],
         ['Memory usage:', '<span id="memory">%s</span>' % memory]
-        ]
+    ]
     page = template.table(page, [''], content)
 
     content = [
