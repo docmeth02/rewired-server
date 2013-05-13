@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 if ! which git >/dev/null; then
    exit 0
 fi
