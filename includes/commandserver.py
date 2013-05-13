@@ -274,15 +274,13 @@ class commandServer(threading.Thread):
 
     ## Files
     def queueTransfer(self, transfer):
-        # add queue check here
         self.lock.acquire()
-        self.parent.transferqueue[transfer.id] = transfer
-        self.logger.debug("Queued transfer %s for user %s", transfer.id, self.user.user)
+        queued = self.parent.transferqueue.queue_transfer(transfer)
         self.lock.release()
-        return 1
+        return queued
 
-    def getAllTransfers(self):
-        return self.parent.transferqueue
+    def getTransfers(self, userid):
+        return self.parent.transferqueue.get_user_transfers(userid)
 
     def doSearch(self, searchString):
         self.lock.acquire()

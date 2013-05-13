@@ -139,6 +139,8 @@ def loadConfig(confFile):
     trackerCategory = string(default="")
     trackerBandwidth = integer(default=1000000)
     serverPidFile = string(default="server.pid")
+    uploadSlots =  integer(default=5)
+    downloadSlots =  integer(default=5)
     guestOn = boolean(default=True)
     adminOn = boolean(default=True)
     # Disable users allowed to kick/ban top show up red in the userlist

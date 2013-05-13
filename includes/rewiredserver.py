@@ -34,7 +34,7 @@ class reWiredServer():
         self.clients = {}
         self.topics = {}
         self.tracker = []
-        self.transferqueue = {}
+        self.transferqueue = 0
         self.binpath = path[0] + sep
         self.threadDebugtimer = 0
         if not self.configfile:
@@ -52,6 +52,7 @@ class reWiredServer():
         self.users.loadUserDB()
         self.indexer = wiredindex.wiredIndex(self)
         self.indexer.start()
+        self.transferqueue = wiredtransfer.wiredTransferQueue(self)
         if self.config['trackerUrl'] and self.config['trackerRegister']:
             self.initTrackers()
             self.logger.debug("%s tracker threads started", len(self.tracker))
@@ -86,6 +87,7 @@ class reWiredServer():
                 self.logger.error(exception)
                 continue
         self.logger.info("Main thread shutdown initiated")
+        self.transferqueue.shutdown_active()  # stop all active transfers
         while threading.active_count() > 1 and not self.bundled:
             self.logger.info(str(threading.active_count()) + " threads still alive... " + str(threading.enumerate()))
             sleep(1)
@@ -117,11 +119,6 @@ class reWiredServer():
             except:
                 pass
             self.lock.release()
-        for key, atransfer in self.transferqueue.items():
-            atransfer.parent.lock.acquire()
-            atransfer.shutdown = 1
-            atransfer.parent.socket.shutdown(socket.SHUT_RDWR)
-            atransfer.parent.lock.release()
         if self.indexer:
             self.indexer.keepalive = 0
         if self.tracker:

@@ -144,3 +144,110 @@ class wiredTransfer():
         if self.size == self.bytesdone:
             return 1
         return 0
+
+
+class wiredTransferQueue():
+    def __init__(self, parent):
+        self.parent = parent
+        self.config = self.parent.config
+        self.uploads = {}
+        self.downloads = {}
+
+    def queue_transfer(self, transfer):
+        if transfer.type == "UP":
+            self.parent.lock.acquire()
+            queuepos = len(self.uploads)
+            self.uploads[time.time()] = transfer
+            self.parent.lock.release()
+
+            if queuepos >= self.config['uploadSlots']:
+                active = self.get_active_transfers(self.uploads)
+                return queuepos - active  # send queue position
+            else:
+                return "GO"
+
+        if transfer.type == "DOWN":
+            self.parent.lock.acquire()
+            queuepos = len(self.downloads)
+            self.downloads[time.time()] = transfer
+            self.parent.lock.release()
+
+            if queuepos >= self.config['downloadSlots']:
+                active = self.get_active_transfers(self.downloads)
+                return queuepos - active  # send queue position
+            else:
+                return "GO"  # free slot right away!
+
+    def get_transfer(self, transferid):
+        for queue in [self.downloads, self.uploads]:
+            for akey, atransfer in queue.items():
+                if atransfer.id == transferid:
+                    return atransfer
+        return 0
+
+    def dequeue(self, transferid):
+        removed = 0
+        for key, atransfer in self.downloads.items():
+            if atransfer.id == transferid:
+                self.parent.lock.acquire()
+                del(self.downloads[key])
+                self.parent.lock.release()
+                removed = 1
+
+        for key, atransfer in self.uploads.items():
+            if atransfer.id == transferid:
+                self.parent.lock.acquire()
+                del(self.uploads[key])
+                self.parent.lock.release()
+                removed = 1
+
+        # update queue
+        self.update_queue(self.uploads, self.config['uploadSlots'])
+        self.update_queue(self.downloads, self.config['downloadSlots'])
+
+        if removed:
+            return 1
+        return 0
+
+    def get_active_transfers(self, queue):
+        count = 0
+        for key, atransfer in queue.items():
+            if atransfer.active:
+                count += 1
+        return count
+
+    def get_user_transfers(self, userid):
+        transfers = []
+        for queue in [self.uploads, self.downloads]:
+            for akey, atransfer in queue.items():
+                if atransfer.userid == userid:
+                    transfers.append(atransfer)
+        return transfers
+
+    def update_queue(self, queue, slots):
+        active, queued = (0, 0)
+        for key in sorted(queue.iterkeys()):
+            if queue[key].active:  # already running
+                active += 1
+                continue
+
+            if active < slots:  # free slot
+                self.parent.lock.acquire()
+                queue[key].parent.update_transfer(queue[key], "GO")
+                self.parent.lock.release()
+                active += 1
+                continue
+
+            if active >= slots:  # all seats are taken
+                queued += 1
+                self.parent.lock.acquire()
+                queue[key].parent.update_transfer(queue[key], queued)
+                self.parent.lock.release()
+                continue
+        return 1
+
+    def shutdown_active(self):
+        for queue in [self.downloads, self.uploads]:
+            for akey, atransfer in queue.items():
+                if atransfer.active:
+                    atransfer.parent.shutdown = 1

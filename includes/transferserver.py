@@ -33,17 +33,18 @@ class transferServer(threading.Thread):
                     self.shutdown = 1
                     self.logger.error("Got invalid command on transfer port from %s", self.ip)
                     break
-                try:
-                    transfer = self.parent.transferqueue[transfer.id]
-                    transfer.active = 1
-                    transfer.parent = self
-                except KeyError:
+                transfer = self.parent.transferqueue.get_transfer(transfer.id)
+                if not transfer:
                     # probably send error here - not a valid transfer id
                     self.logger.error("Invalid transfer id %s from %s", transfer.id, self.ip)
                     self.shutdown = 1
                     break
                 self.logger.debug("Found transfer id %s for %s", transfer.id, self.ip)
+                self.lock.acquire()
+                transfer.active = 1
+                transfer.parent = self
                 self.doTransfer = 1
+                self.lock.release()
                 if transfer.type == "DOWN":
                     if not transfer.doDownload():
                         self.logger.error("Download %s to client %s failed.", transfer.id, self.ip)
@@ -55,7 +56,9 @@ class transferServer(threading.Thread):
                     else:
                         self.logger.info("Upload %s for client %s finished successfully", transfer.id, self.ip)
                 self.lock.acquire(True)
-                self.parent.transferqueue.pop(transfer.id, None)
+                if not self.parent.transferqueue.dequeue(transfer.id):
+                    self.logger.error("Failed to remove transfer %s from queue", transfer.id)
+                del(transfer)
                 self.lock.release()
                 self.shutdown = 1
                 self.transferDone = 1
@@ -71,3 +74,4 @@ class transferServer(threading.Thread):
             self.logger.info("Transfer client %s dropped connection", self.ip)
 
         self.logger.info("Transfer client %s disconnected", self.ip)
+        raise SystemExit

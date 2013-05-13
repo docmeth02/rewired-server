@@ -130,10 +130,10 @@ class wiredUser():
         ## add running transfer check here
         ul = ""
         dl = ""
-        transfers = self.ownTransfers()
-        for id, transfer in transfers.items():
+        transfers = self.parent.getTransfers(self.id)
+        for transfer in transfers:
             if not transfer.active:
-                break  # this is only a queued transfer
+                continue  # this is only a queued transfer
             if transfer.type == "DOWN":
                 if dl:
                     dl += chr(29)
@@ -168,18 +168,9 @@ class wiredUser():
         newstatus += str(self.status)
         return newstatus
 
-    def ownTransfers(self):
-        mytransfers = {}
-        transfers = self.parent.getAllTransfers()
-
-        for id, transfer in transfers.items():
-            if int(self.id) == int(transfer.userid):
-                mytransfers[id] = transfer
-        return mytransfers
-
     def updateTransfers(self):
-        transfers = self.ownTransfers()
-        for id, transfer in transfers.items():
+        transfers = self.parent.getTransfers(self.id)
+        for transfer in transfers:
             if transfer.type == "DOWN":
                 if transfer.limit != self.privs.downloadSpeed:
                     transfer.limit = self.privs.downloadSpeed
