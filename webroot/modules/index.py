@@ -19,6 +19,7 @@ def run(markup, parent, query):
     page = template.header(page, title, script)
     page = template.nav(page, title, parent.user, "Overview")
     ## overview content
+    page.div.close()
     page.div(class_="container")
     page.h1("Server Overview")
 
@@ -81,8 +82,6 @@ def run(markup, parent, query):
         ['Total Transfers:', '<span class="label label-info" id="totaltransfers"> %s </span>' % totaltransfers]
     ]
     page = template.table(page, False, content)
-    page.div.close()
-
     page.div.close()
 
     page.div.close()

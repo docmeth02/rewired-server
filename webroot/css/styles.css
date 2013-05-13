@@ -1,6 +1,3 @@
-@media (min-width:769px) and (max-width:979px){
-    .hidden-desktop{display:inherit !important;}
-    .visible-desktop{display:none !important ;}
-    .visible-tablet{display:inherit !important;}
-    .hidden-tablet{display:none !important;}
-    }
+body {
+        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+      }
