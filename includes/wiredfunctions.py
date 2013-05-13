@@ -5,6 +5,7 @@ import re
 import base64
 import logging
 import platform
+from subprocess import call
 from time import time, strftime, localtime, timezone, altzone, daylight
 try:
     # This will fail on python > 2.7
@@ -169,7 +170,11 @@ def loadConfig(confFile):
     config['serverStarted'] = time()
     if type(config['serverDesc']) is list:
         config['serverDesc'] = ', '.join(config['serverDesc'])
-    config['appVersion'] = "20130427A2"
+    git = gitVersion()
+    if git:
+        config['appVersion'] = git
+    else:
+        config['appVersion'] = "20130427A2"
     config['appName'] = "re:wired Server"
     config['banner'] = readBanner(config['serverBanner'])
     return config
@@ -184,6 +189,34 @@ def checkRootPath(path):
         #print "Warning Invalid root Path: "+path
         #return 0
     return path
+
+
+def gitVersion():
+    # parse git branch and commitid to server version string
+    hasgit = 0
+    # test for git command
+    for dir in os.environ['PATH'].split(os.pathsep):
+        if os.path.exists(os.path.join(dir, 'git')):
+            try:
+                call([os.path.join(dir, 'git')], stdout=open(os.devnull, "w"), stderr=open(os.devnull, "w"))
+            except OSError, e:
+                break
+            hasgit = 1
+    if hasgit:
+        if os.path.exists(os.path.join(os.getcwd(), "includes/git-version.sh")):
+            # both git and our version script exist
+            call([os.path.join(os.getcwd(), "includes/git-version.sh")],
+                 stdout=open(os.devnull, "w"), stderr=open(os.devnull, "w"))
+    # check for version token and load it
+    if os.path.exists(os.path.join(os.getcwd(), "includes/.gitversion")):
+        version = 0
+        try:
+            with open(os.path.join(os.getcwd(), "includes/.gitversion"), 'r') as f:
+                version = f.readline()
+        except (IOError, OSError):
+            return 0
+        return version.strip()
+    return 0
 
 
 def getBanDuration(text):
