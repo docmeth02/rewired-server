@@ -761,7 +761,10 @@ class commandHandler():
                 parameters = data[end + 1:]
                 command = data[:end]
                 parameters = wiredfunctions.tsplit(parameters, chr(28))
-
+            if not len(command):
+                self.logger.error("Empty command from %s: %s", self.parent.user.ip, repr(data))
+                self.reject(500)
+                return 0
             self.logger.debug("got command %s from %s", command, self.parent.user.ip)
             try:
                 result = getattr(self, str(command).upper())(parameters)

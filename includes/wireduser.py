@@ -48,6 +48,7 @@ class wiredUserDB():
 class wiredUser():
     def __init__(self, parent):
         self.parent = parent
+        self.config = self.parent.config
         self.logger = parent.logger
         self.activeChats = {}
         self.memberOfGroup = 0
@@ -82,6 +83,8 @@ class wiredUser():
 
     def mapPrivs(self, privstring):
         self.privs.stringToPrivs(privstring)
+        if self.config['disableAdmins']:
+            self.admin = 0
         return 1
 
     def checkIdleNotify(self):
@@ -158,7 +161,10 @@ class wiredUser():
     def buildStatusChanged(self):
         newstatus = str(self.parent.id) + chr(28)
         newstatus += str(self.idle) + chr(28)
-        newstatus += str(self.admin) + chr(28)
+        if self.config['disableAdmins']:
+            newstatus += str(0) + chr(28)
+        else:
+            newstatus += str(self.admin) + chr(28)
         newstatus += str(self.icon) + chr(28)
         newstatus += str(self.nick) + chr(28)
         newstatus += str(self.status)
