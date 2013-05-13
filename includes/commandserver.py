@@ -58,8 +58,7 @@ class commandServer(threading.Thread):
                         char = self.socket.recv(1)
                     except ssl.SSLError as e:
                         if str(e) == 'The read operation timed out':
-                            time.sleep(0.1)
-                            continue
+                            pass
                         else:
                             self.logger.debug("Caught SSLError: %s" % e)
                             self.shutdown = 1
@@ -70,9 +69,11 @@ class commandServer(threading.Thread):
                         break
                     if char:
                         data += char
-                    else:
+                    elif char == "":
                         self.shutdown = 1
                         break
+                    else:
+                        continue
                 if not self.shutdown:
                     response = self.handler.gotdata(data)
             self.exit()
