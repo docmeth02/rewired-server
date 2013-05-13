@@ -195,7 +195,10 @@ class wiredlog():
             string = string[string.find('%s'):]
 
         for avar in mapping[1]:
-            value = data[avar]
+            try:
+                value = data[avar]
+            except KeyError:
+                continue
             if (avar == 'DIR' or avar == 'FILE' or avar == 'NAME' or avar == 'SRC') and not extended:
                 # shorten filenames
                 if value != "/":

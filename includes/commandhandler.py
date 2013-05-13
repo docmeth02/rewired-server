@@ -73,7 +73,7 @@ class commandHandler():
         user = self.parent.checkLogin(str(self.parent.user.user), str(parameters[0]), self.parent.user.ip)
         if not user:
                 # login failed
-            self.wiredlog.log_event('LOGIN', {'RESULT': 'FAILED', 'USER': self.parent.user.user, 'NICK': self.parent.user.nick})
+            self.wiredlog.log_event('LOGIN', {'RESULT': 'FAILED', 'USER': self.parent.user.user, 'NICK': self.parent.user.nick, 'IP': self.parent.user.ip})
             self.logger.error("Login failed for user %s", self.parent.user.user)
             self.reject(510)
             self.parent.shutdown = 1

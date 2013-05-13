@@ -22,6 +22,10 @@ function getlog() {
                             type = 'label-important';
                             rowclass = 'class = "error"';
                             break;
+                        case 'failed':
+                            type = 'label-important';
+                            rowclass = 'class = "error"';
+                            break;
                         default:
                             type = 'label-info';
                     }

@@ -17,6 +17,9 @@ function update() {
                         case 'aborted':
                             type = 'label-important';
                             break;
+                        case 'failed':
+                            type = 'label-important';
+                            break;
                         default:
                             type = 'label-info';
                     }
@@ -54,4 +57,3 @@ function update() {
         });
         $('#spinner').hide();
         };
-
