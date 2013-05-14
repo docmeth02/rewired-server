@@ -141,9 +141,10 @@ def loadConfig(confFile):
     serverPidFile = string(default="server.pid")
     uploadSlots =  integer(default=5)
     downloadSlots =  integer(default=5)
+    allowmultiple = boolean(default=True)
     guestOn = boolean(default=True)
     adminOn = boolean(default=True)
-    # Disable users allowed to kick/ban top show up red in the userlist
+    # Disable users allowed to kick/ban to show up red in the userlist
     disableAdmins = boolean(default=False)
     # Exclude file or directories by patterns. *.iso, moo*, Icon
     excludePatterns = list(default=list("Icon"))
