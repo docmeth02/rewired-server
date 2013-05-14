@@ -14,6 +14,7 @@ class wiredTransfer():
         self.logger = parent.logger
         self.config = self.parent.config
         self.time = time.time()
+        self.queuepos = 0
         self.active = 0
         self.type = None
         self.userid = 0
@@ -154,29 +155,28 @@ class wiredTransferQueue():
         self.downloads = {}
 
     def queue_transfer(self, transfer):
+        queue = self.downloads
+        slots = self.config['downloadSlots']
         if transfer.type == "UP":
-            self.parent.lock.acquire()
-            queuepos = len(self.uploads)
-            self.uploads[time.time()] = transfer
-            self.parent.lock.release()
+            queue = self.uploads
+            slots = self.config['uploadSlots']
 
-            if queuepos >= self.config['uploadSlots']:
-                active = self.get_active_transfers(self.uploads)
-                return queuepos - active  # send queue position
-            else:
-                return "GO"
+        self.parent.lock.acquire()
+        queuepos = len(queue)
+        queue[time.time()] = transfer
+        self.parent.lock.release()
 
-        if transfer.type == "DOWN":
-            self.parent.lock.acquire()
-            queuepos = len(self.downloads)
-            self.downloads[time.time()] = transfer
-            self.parent.lock.release()
+        activeusertrans = len(self.get_user_transfers(transfer.userid, transfer.type, True))
+        if not self.config['allowmultiple'] and activeusertrans:
+            # User tries to request multiple files but server rules forbid to do so
+            return len(self.get_user_transfers(transfer.userid, transfer.type)) - 1
+        elif queuepos >= slots:
+            active = self.get_active_transfers(queue)
+            transfer.queuepos = queuepos - active
+            return transfer.queuepos  # send queue position
 
-            if queuepos >= self.config['downloadSlots']:
-                active = self.get_active_transfers(self.downloads)
-                return queuepos - active  # send queue position
-            else:
-                return "GO"  # free slot right away!
+        else:
+            return "GO"
 
     def get_transfer(self, transferid):
         for queue in [self.downloads, self.uploads]:
@@ -216,11 +216,16 @@ class wiredTransferQueue():
                 count += 1
         return count
 
-    def get_user_transfers(self, userid):
+    def get_user_transfers(self, userid, ttype=False, active=False):
         transfers = []
         for queue in [self.uploads, self.downloads]:
             for akey, atransfer in queue.items():
                 if atransfer.userid == userid:
+                    if ttype:
+                        if ttype != atransfer.type:
+                            continue
+                    if active and not atransfer.active:
+                        continue
                     transfers.append(atransfer)
         return transfers
 
@@ -231,7 +236,16 @@ class wiredTransferQueue():
                 active += 1
                 continue
 
-            if active < slots:  # free slot
+            if active < slots:  # free slot available
+                if not self.config['allowmultiple']:
+                    # take care of clients trying to start multiple transfers but aren't allowed to
+                    activeusertf = len(self.get_user_transfers(queue[key].userid, queue[key].type, True))
+                    if activeusertf:
+                        self.parent.lock.acquire()
+                        queue[key].queuepos = activeusertf - 1
+                        self.parent.lock.release()
+                        queue[key].parent.update_transfer(queue[key], queue[key].queuepos)
+                        continue
                 self.parent.lock.acquire()
                 queue[key].parent.update_transfer(queue[key], "GO")
                 self.parent.lock.release()
