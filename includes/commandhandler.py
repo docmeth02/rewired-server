@@ -728,7 +728,7 @@ class commandHandler():
                 parameters = data[end + 1:]
                 command = data[:end]
                 parameters = wiredfunctions.tsplit(parameters, chr(28))
-            if not len(command):
+            if not hasattr(self, command.upper()):
                 self.logger.error("Empty command from %s: %s", self.parent.user.ip, repr(data))
                 self.reject(500)
                 return 0
