@@ -142,6 +142,10 @@ def loadConfig(confFile):
     uploadSlots =  integer(default=5)
     downloadSlots =  integer(default=5)
     allowmultiple = boolean(default=True)
+    # limit maximum bandwidth of the server. Values are in kbytes per second. 0 to disable
+    uplimit =  integer(default=0)
+    downlimit =  integer(default=0)
+
     guestOn = boolean(default=True)
     adminOn = boolean(default=True)
     # Disable users allowed to kick/ban to show up red in the userlist

@@ -46,11 +46,17 @@ class transferServer(threading.Thread):
                 self.doTransfer = 1
                 self.lock.release()
                 if transfer.type == "DOWN":
+                    if self.config["downlimit"]:
+                        self.parent.transferqueue.throttle_transferqueue(self.parent.transferqueue.uploads,
+                                                                         self.config["downloadSlots"], self.config["downlimit"])
                     if not transfer.doDownload():
                         self.logger.error("Download %s to client %s failed.", transfer.id, self.ip)
                     else:
                         self.logger.info("Download %s for client %s finished successfully", transfer.id, self.ip)
                 if transfer.type == "UP":
+                    if self.config["uplimit"]:
+                        self.parent.transferqueue.throttle_transferqueue(self.parent.transferqueue.uploads,
+                                                                         self.config["uploadSlots"], self.config["uplimit"])
                     if not transfer.doUpload():
                         self.logger.error("Upload %s from client %s interrupted.", transfer.id, self.ip)
                     else:
@@ -62,6 +68,12 @@ class transferServer(threading.Thread):
                 self.lock.release()
                 self.shutdown = 1
                 self.transferDone = 1
+                if self.config["downlimit"]:
+                    self.parent.transferqueue.throttle_transferqueue(self.parent.transferqueue.uploads,
+                                                                         self.config["downloadSlots"], self.config["downlimit"])
+                if self.config["uplimit"]:
+                    self.parent.transferqueue.throttle_transferqueue(self.parent.transferqueue.uploads,
+                                                                         self.config["uploadSlots"], self.config["uplimit"])
                 self.logger.debug("Exit tranfer thread")
                 break
             if not data:

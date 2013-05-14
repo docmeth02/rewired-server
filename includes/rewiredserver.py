@@ -159,6 +159,13 @@ class reWiredServer():
             self.indexer.sizeChanged = 0
             self.indexer.lock.release()
 
+        if self.config["uplimit"]:
+            self.transferqueue.throttle_transferqueue(self.transferqueue.uploads,
+                                                      self.config["uploadSlots"], self.config["uplimit"])
+        if self.config["downlimit"]:
+            self.transferqueue.throttle_transferqueue(self.transferqueue.uploads,
+                                                      self.config["downloadSlots"], self.config["downlimit"])
+
         # check for zombies and idle users
         for aid, aclient in self.clients.items():
             if aclient.user.checkIdleNotify():
@@ -168,7 +175,7 @@ class reWiredServer():
                 self.lock.release()
 
             if not aclient.is_alive() or aclient.lastPing <= (time() - self.config['pingTimeout']):
-                self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",\
+                self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",
                                   aid, (time() - aclient.lastPing))
                 try:
                     aclient.logOut()
@@ -207,7 +214,7 @@ class reWiredServer():
             if not ssl.RAND_status():
                 self.logger.error("Warning: not enough random seed available!")
                 ssl.RAND_add(str(time()), time() * time())
-            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
+            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),
                                    keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
             return sock
         except:
@@ -228,7 +235,7 @@ class reWiredServer():
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.bind((self.config['host'], (int(self.config['port']) + 1)))
             sock.listen(4)
-            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
+            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),
                                    keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
             return sock
         except:

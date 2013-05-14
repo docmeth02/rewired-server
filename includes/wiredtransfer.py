@@ -171,7 +171,7 @@ class wiredTransferQueue():
             # User tries to request multiple files but server rules forbid to do so
             return len(self.get_user_transfers(transfer.userid, transfer.type)) - 1
         elif queuepos >= slots:
-            active = self.get_active_transfers(queue)
+            active = self.get_active_count(queue)
             transfer.queuepos = queuepos - active
             return transfer.queuepos  # send queue position
 
@@ -209,12 +209,19 @@ class wiredTransferQueue():
             return 1
         return 0
 
-    def get_active_transfers(self, queue):
+    def get_active_count(self, queue):
         count = 0
         for key, atransfer in queue.items():
             if atransfer.active:
                 count += 1
         return count
+
+    def get_active_transfers(self, queue):
+        active = []
+        for key, atransfer in queue.items():
+            if atransfer.active:
+                active.append(atransfer)
+        return active
 
     def get_user_transfers(self, userid, ttype=False, active=False):
         transfers = []
@@ -265,3 +272,17 @@ class wiredTransferQueue():
             for akey, atransfer in queue.items():
                 if atransfer.active:
                     atransfer.parent.shutdown = 1
+
+    def throttle_transferqueue(self, queue, slots, limit):
+        transfers = self.get_active_transfers(queue)
+        if not transfers:
+            return 0
+        active = len(transfers)
+        speed = round((limit * 1024) / active)
+        for atransfer in transfers:
+            if atransfer.limit != speed:
+                self.parent.lock.acquire()
+                atransfer.limit = speed
+                self.parent.lock.release()
+                self.parent.logger.debug("Speed of transfer %s set to %s kbytes", atransfer.id, (atransfer.limit / 1024))
+        return 1
