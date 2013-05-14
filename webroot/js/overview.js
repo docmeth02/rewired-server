@@ -4,7 +4,7 @@ function update() {
         .done(function(data) {
             var html = "";
             $.each(data['log'], function(key, item) {
-                var row = '<tr><td>'+ item['DATE']+'</td><td>'+ item['STRING'];
+                var row = '<tr><td>'+ item['DATE']+'</td><td style="word-wrap: break-word; word-break: break-all;">'+ item['STRING'];
                 if (item.hasOwnProperty('RESULT')) {
                     var type = ""
                     switch(item['RESULT']) {
