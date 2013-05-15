@@ -170,7 +170,7 @@ def loadConfig(confFile):
     config['serverStarted'] = time()
     if type(config['serverDesc']) is list:
         config['serverDesc'] = ', '.join(config['serverDesc'])
-    git = gitVersion()
+    git = gitVersion("includes")
     if git:
         config['appVersion'] = git
     else:
@@ -191,7 +191,7 @@ def checkRootPath(path):
     return path
 
 
-def gitVersion():
+def gitVersion(basepath):
     # parse git branch and commitid to server version string
     hasgit = 0
     # test for git command
@@ -203,15 +203,15 @@ def gitVersion():
                 break
             hasgit = 1
     if hasgit:
-        if os.path.exists(os.path.join(os.getcwd(), "includes/git-version.sh")):
+        if os.path.exists(os.path.join(os.getcwd(), basepath, "git-version.sh")):
             # both git and our version script exist
-            call([os.path.join(os.getcwd(), "includes/git-version.sh")],
+            call([os.path.join(os.getcwd(), basepath, "git-version.sh")],
                  stdout=open(os.devnull, "w"), stderr=open(os.devnull, "w"))
     # check for version token and load it
-    if os.path.exists(os.path.join(os.getcwd(), "includes/.gitversion")):
+    if os.path.exists(os.path.join(os.getcwd(), basepath, ".gitversion")):
         version = 0
         try:
-            with open(os.path.join(os.getcwd(), "includes/.gitversion"), 'r') as f:
+            with open(os.path.join(os.getcwd(), basepath, ".gitversion"), 'r') as f:
                 version = f.readline()
         except (IOError, OSError):
             return 0

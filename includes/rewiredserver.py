@@ -42,6 +42,10 @@ class reWiredServer():
 
     def initialize(self):
         self.config = wiredfunctions.loadConfig(self.configfile)
+        if self.bundled:  # path to the git version file is differen when running in bundled mode
+            git = wiredfunctions.gitVersion("rewiredserver/includes")
+            if git:
+                self.config['appVersion'] = git
         self.logger = wiredfunctions.initLogger(self.config["logFile"], self.config["logLevel"])
         self.pid = wiredfunctions.initPID(self.config)
         self.logger.info("Server pid: %s", self.pid)
