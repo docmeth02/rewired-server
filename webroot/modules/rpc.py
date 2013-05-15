@@ -1,7 +1,11 @@
 from json import dumps
 from os import getpid, name
-from resource import getrusage, RUSAGE_SELF, RUSAGE_CHILDREN
+try:
+    from resource import getrusage, RUSAGE_SELF, RUSAGE_CHILDREN
+except ImportError:
+    pass
 from platform import system
+
 
 def run(markup, parent, query):
     handler = parent.parent
@@ -32,9 +36,10 @@ def run(markup, parent, query):
             memory += getrusage(RUSAGE_CHILDREN).ru_maxrss
             if system() == 'Linux':  # bytes on osx, kbytes on linux
                 memory *= 1024
+            status['memory'] = handler.format_size(memory)
         except:
-            pass
-        status['memory'] = handler.format_size(memory)
+            status['memory'] = "NA"
+
         status['activeUsers'] = activeUsers
         status['activeTransfersdown'] = activeTransfers['down']
         status['activeTransfersup'] = activeTransfers['up']

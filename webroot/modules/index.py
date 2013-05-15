@@ -1,5 +1,8 @@
 from os import getpid
-from resource import getrusage, RUSAGE_SELF, RUSAGE_CHILDREN
+try:
+    from resource import getrusage, RUSAGE_SELF, RUSAGE_CHILDREN
+except ImportError:
+    pass
 from platform import system
 
 
@@ -67,10 +70,9 @@ def run(markup, parent, query):
         memory += getrusage(RUSAGE_CHILDREN).ru_maxrss
         if system() == 'Linux':  # bytes on osx, kbytes on linux
             memory *= 1024
-
+        memory = handler.format_size(memory)
     except:
-        pass
-    memory = handler.format_size(memory)
+        memory = "NA"
     content = [
         ['Process ID:', '<span id="pid">%s</span>' % pid],
         ['Memory usage:', '<span id="memory">%s</span>' % memory]
