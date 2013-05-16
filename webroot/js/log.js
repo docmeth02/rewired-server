@@ -27,7 +27,7 @@ function getlog() {
                             rowclass = 'class = "error"';
                             break;
                         default:
-                            type = 'label-info';
+                            type = 0;
                     }
                }
                 if (item.hasOwnProperty('EXTENDED')) {
@@ -54,7 +54,12 @@ function getlog() {
                 row += '</td>';
 
                 if (item.hasOwnProperty('RESULT')) {
-                    row += '<td><span class="label '+ type + '">' + item['RESULT'] + '</span></td>';
+                    if (type){
+                        row += '<td><span class="label '+ type + '">' + item['RESULT'] + '</span></td>';
+                    }
+                    else {
+                        row += '<td>' + item['RESULT'] + '</td>';
+                    }
                 }
                 else {
                     row += '<td></td>';

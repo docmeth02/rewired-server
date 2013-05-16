@@ -21,10 +21,13 @@ function update() {
                             type = 'label-important';
                             break;
                         default:
-                            type = 'label-info';
+                            type = 0;
                     }
-                    row += '<span class="label '+ type + '">' + item['RESULT'] + '</span>';
-                }
+                    if (type) {
+                        row += '<span class="label '+ type + '">' + item['RESULT'] + '</span>';
+                    }
+                    }
+
                 row += '</td><td>' + item['USER'] + '</td></tr>';
                 html += row;
 

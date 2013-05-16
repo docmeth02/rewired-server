@@ -224,6 +224,8 @@ class wiredlog():
         formated['USER'] = user
         if 'RESULT' in data:
             formated['RESULT'] = data['RESULT'].lower()
+        else:
+            formated['RESULT'] = "-"
 
         formated['DATE'] = strftime("%H:%M:%S", localtime(event[0]))
 
