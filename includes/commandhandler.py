@@ -611,7 +611,10 @@ class commandHandler():
         transfer.userid = self.parent.id
         transfer.limit = int(self.parent.user.privs.uploadSpeed)
         transfer.file = parameters[0]
-        transfer.checksum = str(parameters[2])
+        try:
+            transfer.checksum = str(parameters[2])
+        except IndexError:
+            transfer.checksum = 0
         # check for already existing files
         precheck = wiredfiles.wiredFiles(self)
         result = precheck.uploadCheck(transfer.file, transfer.checksum)
