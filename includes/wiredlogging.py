@@ -219,6 +219,8 @@ class wiredlog():
         user = event[1]
         if not user:
             user = "-"
+        else:
+            formated['LOGIN'] = user
         if 'NICK' in data:
             user += " (%s)" % data['NICK']
         formated['USER'] = user
@@ -233,6 +235,50 @@ class wiredlog():
             formated['DATE'] = strftime("%d/%m/%Y - %H:%M:%S", localtime(event[0]))
         return formated
 
+    def get_ratio(self, login):
+        upload = self.retrieve_events(0, {'user': str(login), 'type': 'UPLOAD'}, 0)
+        download = self.retrieve_events(0, {'user': str(login), 'type': 'DOWNLOAD'}, 0)
+        upload = self.sum_transfer_events(upload)
+        download = self.sum_transfer_events(download)
+        try:
+            ratio = 0
+            ratio = float(download / upload)
+        except ZeroDivisionError:
+            pass
+        return {'ratio': ratio, 'upload': format_size(upload), 'download': format_size(download)}
+
+    def sum_transfer_events(self, transferlist):
+        size = 0
+        for aitem in transferlist:
+            data = loads(aitem[3])
+            if 'SIZE' in data:
+                size += int(data['SIZE'])
+        return size
+
+    def get_userinfo(self, login):
+        if not self.openlog():
+            return 0
+        values, data = ({}, 0)
+        for key, aclient in self.parent.clients.items():
+            if aclient.user.user == login:
+                values = {'ip': aclient.user.ip, 'nick': aclient.user.nick, 'image': aclient.user.image, 'lastseen': 'is online'}
+        data = self.retrieve_events(1, {'user': str(login), 'type': 'LOGOUT'}, 0)
+        if data:
+            if not 'lastseen' in values:
+                values['lastseen'] = format_time(float(time()) - float(data[0][0])) + " ago."
+            data = self.retrieve_events(1, {'user': str(login), 'type': 'LOGIN'}, 0)
+            if not 'lastseen' in values:
+                values['lastseen'] = format_time(float(time()) - float(data[0][0])) + " ago."
+            data = loads(data[0][3])
+            if not 'nick' in values:
+                values['nick'] = data['NICK']
+            if not 'ip' in values:
+                values['ip'] = data['IP']
+        if not len(values):
+            return 0
+        ratio = self.get_ratio(login)
+        return dict(values, **ratio)
+
 
 def format_size(size):
     for x in [' bytes', ' KB', ' MB', ' GB']:
@@ -244,3 +290,11 @@ def format_size(size):
     if not skip:
         size = "%3.1f%s" % (size, ' TB')
     return size
+
+
+def format_time(seconds):
+    days = int(seconds // (3600 * 24))
+    hours = int((seconds // 3600) % 24)
+    minutes = int((seconds // 60) % 60)
+    seconds = int(seconds % 60)
+    return "%s days, %s:%s:%s" % (days, str(hours).zfill(2), str(minutes).zfill(2), str(seconds).zfill(2))

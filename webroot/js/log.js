@@ -1,9 +1,9 @@
 function getlog() {
         $.getJSON('/rpc.cgi?type=log&offset=' + window.offset)
         .done(function(data) {
-            //alert("Called: " + window.offset);
             var html = "";
-            var exten = 0
+            var exten = 0;
+            var users = 0;
             $.each(data['log'], function(key, item) {
                 var row = ''
                 var rowclass = ""
@@ -31,7 +31,6 @@ function getlog() {
                     }
                }
                 if (item.hasOwnProperty('EXTENDED')) {
-                //alert("EXTENT");
                 row += '<tr '+ rowclass + 'onmouseover="$(\'#log' + exten + '\').collapse(\'show\');"\
                 onmouseout="$(\'#log' + exten + '\').collapse(\'hide\');" onclick="$(\'#log\
                 '+ exten + '\').collapse(\'toggle\');">';
@@ -40,7 +39,15 @@ function getlog() {
                     row += '<tr ' + rowclass + '>';
                 }
                 row += '<td style="max-width=60px;">'+ item['DATE']+'</td>';
-                row += '<td>' + item['USER'] + '</td>';
+
+
+                if (item['USER'] != '-') {
+                    row += '<td><span id="User' + users +'" login="'+ item['LOGIN']+ '">' + item['USER'] + '</span></td>';
+                users ++;
+                }
+                else {
+                    row += '<td>' + item['USER'] + '</td>';
+                    }
                 var colspan = 'colspan="2"';
                 if (item.hasOwnProperty('RESULT')) {
                     colspan = '';
@@ -68,7 +75,61 @@ function getlog() {
                 html += row;
 
             $('#log > tbody').html(html);
-
+            for (var i=0;i<users;i++) {
+                $('#User' + i).popover({
+                    trigger: 'manual',
+                    position: 'bottom',
+                    template: '<div class="popover moocow"><div class="arrow"></div><div class="popover-inner">\
+                    <h3 class="popover-title"></h3><div class="popover-content"><p></p></div></div></div>',
+                    html: true,
+                    title: '',
+                    content: ''
+                    }).click(function(evt) {
+                        evt.stopPropagation();
+                        if ($(this).next('div.popover:visible').length) {  // check for close event
+                        $(this).popover('hide');
+                        }
+                        else {
+                            $.getJSON('/rpc.cgi?type=userinfo&login=' + $(this).attr('login'), target = $(this))
+                            .done(function(data) {
+                                popover = target.data('popover');
+                                popover.options.title = '<h4><img src="data:image/png;base64,' + data['image'] +'" \
+                                alt="User Icon" style="padding-right:5px;" width="32" height="32"/>\ User ' +target.attr('login') +'</h4>';
+                                popover.options.content = '<div class="container-fluid">\
+                                <div class="span7">\
+                                <div class="row-fluid">\
+                                <div class="span7">\
+                                <table class="table">\
+                                <thead></thead>\
+                                <tbody>\
+                                <tr><td>Last seen: </td>\
+                                <td>'+ data['lastseen'] + '</td></tr>\
+                                <tr><td>Last IP: </td>\
+                                <td>'+ data['ip'] + '</td></tr>\
+                                <tr><td>Uploaded: </td>\
+                                <td>' + data['upload'] + '</td></tr>\
+                                <tr><td>Downloaded: </td>\
+                                <td>' + data['download'] + '</td></tr>\
+                                <tr><td>Ratio: </td>\
+                                <td>' + data['ratio'] + '</td></tr>\
+                                </tbody>\
+                                </table>\
+                                </div>\
+                                </div>\
+                                </div>\
+                                </div>';
+                                target.popover('show');
+                            })
+                            .fail(function( jqxhr, textStatus, error ) {
+                                alert("Fail");
+                            });
+                            }
+                    });
+            }
+    $(document).click(function (e)
+      {
+          if ($(e.target).parents('.popover').length == 0) $('[data-original-title]').popover('hide');
+      });
             });
         var html = "";
         var eventcount = data['count'];

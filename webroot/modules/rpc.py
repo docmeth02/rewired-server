@@ -5,7 +5,7 @@ try:
 except ImportError:
     pass
 from platform import system
-
+from base64 import b64encode
 
 def run(markup, parent, query):
     handler = parent.parent
@@ -67,5 +67,29 @@ def run(markup, parent, query):
             if aevent:
                 logdata.append(aevent)
         return dumps({'count': count, 'log': logdata})
+
+    if query['type'][0] == 'banner':
+        image = handler.get_banner()
+        if image:
+            parent.mimetype = ["image/png"]
+            return image
+        return ""
+
+    if query['type'][0] == 'userinfo':
+        if not 'login' in query:
+            return "Invalid request"
+        login = query['login'][0]
+        data = handler.get_userinfo(login)
+        if not data:
+            return "NODATA"
+        if not 'image' in data:
+            try:
+                with open('webroot/css/defaultuser.png', 'r') as filecontent:
+                        content = filecontent.read()
+            except IOError:
+                content = 0
+            if content:
+                data['image'] = b64encode(content)
+        return dumps(data)
 
     return "{'data': false}"

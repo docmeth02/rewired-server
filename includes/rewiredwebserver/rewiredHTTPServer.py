@@ -103,6 +103,14 @@ class rewiredWebHandler:
     def format_event(self, event, extended=False):
         return self.rewiredserver.wiredlog.format_event(event, extended)
 
+    def get_banner(self):
+        if self.rewiredserver.config['banner']:
+            return b64decode(self.rewiredserver.config['banner'])
+        return 0
+
+    def get_userinfo(self, login):
+        return self.rewiredserver.wiredlog.get_userinfo(login)
+
 
 class rewiredRequestHandler(BaseHTTPRequestHandler):
     def __init__(self, request, client_address, server, parent, webroot, config):
