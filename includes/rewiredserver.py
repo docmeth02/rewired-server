@@ -49,6 +49,7 @@ class reWiredServer():
         self.logger.info("Server pid: %s", self.pid)
         self.db = wireddb.wiredDB(self.config, self.logger)
         self.wiredlog = wiredlogging.wiredlog(self)
+        self.wiredlog.log_event('SERVERSTART', {})
         self.news = wirednews.wiredNews(self.db)
         self.news.loadNews()
         self.users = wireduser.wiredUserDB(self.db, self.logger)
@@ -115,6 +116,7 @@ class reWiredServer():
     def serverShutdown(self, signum=None, frame=None):
         self.logger.info("Got signal: %s.Starting server shutdown", signum)
         # shutdown the server
+        self.wiredlog.log_event('SERVERSTOP', {})
         self.keeprunning = 0
         if self.cleantimer:
             self.cleantimer.cancel()

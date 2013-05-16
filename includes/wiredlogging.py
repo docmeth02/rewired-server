@@ -38,14 +38,14 @@ class wiredlog():
         return 1
 
     def stop(self):
-        if self.committimer:
-            self.logger.debug("Logger: shutting down logger")
-            self.committimer.cancel()
-            self.committimer.join(1)
-            self.shutdown = 1
+        self.logger.debug("Logger: shutting down logger")
         if len(self.buffer):
             self.logger.info("Logger: syncing remaining events to log")
-            self.commit_to_db()
+            self.commit_to_db(True)
+        self.shutdown = 1
+        if self.committimer:
+            self.committimer.cancel()
+            self.committimer.join(1)
         self.vacuum()
         self.logger.debug("Logger: shutdown done")
         return 1
@@ -126,10 +126,10 @@ class wiredlog():
             return int(count)
         return count
 
-    def commit_to_db(self):
+    def commit_to_db(self, singlecommit=0):
         if not self.openlog():
             return 0
-        if not len(self.buffer):
+        if not len(self.buffer) and not singlecommit:
             self.committimer = Timer(60, self.commit_to_db)
             self.committimer.start()
             return 1
@@ -142,7 +142,7 @@ class wiredlog():
         self.buffer = []
         self.lock.release()
         self.closelog()
-        if not self.shutdown:
+        if not self.shutdown and not singlecommit:
             self.committimer = Timer(60, self.commit_to_db)
             self.committimer.start()
         if self.debug:
@@ -156,6 +156,8 @@ class wiredlog():
         eventMap = {
             'LOGIN': ["Login (%s)", ['IP']],
             'LOGOUT': ["Disconnected", []],
+            'SERVERSTART': ["Server started", []],
+            'SERVERSTOP': ["Server stopped", []],
             'LIST': ["List dir: '%s'", ['DIR']],
             'DELETE': ["Deleted %s", ['NAME']],
             'SEARCH': ["Searched for %s", ['SEARCH']],
@@ -215,6 +217,8 @@ class wiredlog():
             formated['STRING'] = string
 
         user = event[1]
+        if not user:
+            user = "-"
         if 'NICK' in data:
             user += " (%s)" % data['NICK']
         formated['USER'] = user
