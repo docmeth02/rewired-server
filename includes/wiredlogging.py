@@ -240,11 +240,17 @@ class wiredlog():
         download = self.retrieve_events(0, {'user': str(login), 'type': 'DOWNLOAD'}, 0)
         upload = self.sum_transfer_events(upload)
         download = self.sum_transfer_events(download)
-        try:
-            ratio = 0
-            ratio = float(download / upload)
-        except ZeroDivisionError:
-            pass
+        if not download and not upload:
+            ratio = "NA"
+        elif not upload and download:
+            ratio = "NA"
+        elif not download and upload:
+            ratio = 1.0
+        else:
+            try:
+                ratio = round(float(upload/ download), 4)
+            except ZeroDivisionError:
+                ratio = "NA"
         return {'ratio': ratio, 'upload': format_size(upload), 'download': format_size(download)}
 
     def sum_transfer_events(self, transferlist):

@@ -99,7 +99,7 @@ function getlog() {
                                 <div class="span7">\
                                 <div class="row-fluid">\
                                 <div class="span7">\
-                                <table class="table">\
+                                <table class="table" style="word-wrap: break-word;">\
                                 <thead></thead>\
                                 <tbody>\
                                 <tr><td>Last seen: </td>\
