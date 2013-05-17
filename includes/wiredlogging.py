@@ -243,12 +243,12 @@ class wiredlog():
         if not download and not upload:
             ratio = "NA"
         elif not upload and download:
-            ratio = "NA"
+            ratio = 0.0
         elif not download and upload:
             ratio = 1.0
         else:
             try:
-                ratio = round(float(upload/ download), 4)
+                ratio = round((float(upload) / float(download)), 4)
             except ZeroDivisionError:
                 ratio = "NA"
         return {'ratio': ratio, 'upload': format_size(upload), 'download': format_size(download)}
@@ -267,12 +267,14 @@ class wiredlog():
         values, data = ({}, 0)
         for key, aclient in self.parent.clients.items():
             if aclient.user.user == login:
-                values = {'ip': aclient.user.ip, 'nick': aclient.user.nick, 'image': aclient.user.image, 'lastseen': 'is online'}
+                values = {'ip': aclient.user.ip, 'nick': aclient.user.nick, 'image': aclient.user.image,
+                          'lastseen': 'is online'}
         data = self.retrieve_events(1, {'user': str(login), 'type': 'LOGOUT'}, 0)
         if data:
             if not 'lastseen' in values:
                 values['lastseen'] = format_time(float(time()) - float(data[0][0])) + " ago."
-            data = self.retrieve_events(1, {'user': str(login), 'type': 'LOGIN'}, 0)
+        data = self.retrieve_events(1, {'user': str(login), 'type': 'LOGIN'}, 0)
+        if data:
             if not 'lastseen' in values:
                 values['lastseen'] = format_time(float(time()) - float(data[0][0])) + " ago."
             data = loads(data[0][3])

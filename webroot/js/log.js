@@ -80,7 +80,7 @@ function getlog() {
                     trigger: 'manual',
                     position: 'bottom',
                     template: '<div class="popover moocow"><div class="arrow"></div><div class="popover-inner">\
-                    <h3 class="popover-title"></h3><div class="popover-content"><p></p></div></div></div>',
+                    <h3 class="popover-title"></h3><div class="popover-content"></div></div></div>',
                     html: true,
                     title: '',
                     content: ''
@@ -95,33 +95,32 @@ function getlog() {
                                 popover = target.data('popover');
                                 popover.options.title = '<h4><img src="data:image/png;base64,' + data['image'] +'" \
                                 alt="User Icon" style="padding-right:5px;" width="32" height="32"/>\ User ' +target.attr('login') +'</h4>';
-                                popover.options.content = '<div class="container-fluid">\
-                                <div class="span7">\
-                                <div class="row-fluid">\
-                                <div class="span7">\
-                                <table class="table" style="word-wrap: break-word;">\
+                                popover.options.content = '<div>\
+                                <table class="table">\
                                 <thead></thead>\
                                 <tbody>\
                                 <tr><td>Last seen: </td>\
-                                <td>'+ data['lastseen'] + '</td></tr>\
+                                <td class="wrapper">'+ data['lastseen'] + '</td></tr>\
                                 <tr><td>Last IP: </td>\
-                                <td>'+ data['ip'] + '</td></tr>\
+                                <td class="wrapper">'+ data['ip'] + '</td></tr>\
                                 <tr><td>Uploaded: </td>\
-                                <td>' + data['upload'] + '</td></tr>\
+                                <td class="wrapper">' + data['upload'] + '</td></tr>\
                                 <tr><td>Downloaded: </td>\
-                                <td>' + data['download'] + '</td></tr>\
+                                <td class="wrapper">' + data['download'] + '</td></tr>\
                                 <tr><td>Ratio: </td>\
-                                <td>' + data['ratio'] + '</td></tr>\
+                                <td class="wrapper">' + data['ratio'] + '</td></tr>\
                                 </tbody>\
                                 </table>\
-                                </div>\
-                                </div>\
-                                </div>\
                                 </div>';
                                 target.popover('show');
                             })
                             .fail(function( jqxhr, textStatus, error ) {
-                                alert("Fail");
+                                popover = target.data('popover');
+                                popover.options.title = '<h4>User ' +target.attr('login') +'</h4>';
+                                popover.options.content = '<div>\
+                                <h3>No Data found</h3>\
+                                </div>';
+                                target.popover('show');
                             });
                             }
                     });

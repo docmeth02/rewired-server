@@ -3,6 +3,11 @@ body {
       }
 
 .userinfo {
-	max-width: 350px;
+	max-width: 400px;
 	width: auto;
+}
+
+.wrapper {
+    word-wrap: break-word;
+    word-break:break-all;
 }
