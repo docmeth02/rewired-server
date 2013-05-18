@@ -5,7 +5,7 @@ from urlparse import urlparse, parse_qs
 from mimetypes import guess_type
 from time import sleep, time
 from hashlib import sha1
-from socket import SOL_SOCKET, SO_REUSEADDR
+from socket import SOL_SOCKET, SO_REUSEADDR, error, SHUT_RDWR
 from traceback import format_exc
 import markup
 import select
@@ -291,5 +291,10 @@ class rewiredHTTPServer(threading.Thread):
             read, write, excep = select.select([self.httpd.socket.fileno()], [], [], .25)
             if read:
                 self.httpd.handle_request()
+        try:
+            self.httpd.socket.shutdown(SHUT_RDWR)
+            self.httpd.socket.close()
+        except error:
+            pass
         self.logger.info("Web interface shutdown complete")
         raise SystemExit
