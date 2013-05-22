@@ -18,9 +18,9 @@ from traceback import format_exception
 class commandServer(threading.Thread):
     def __init__(self, parent, (parentsocket, address)):
         threading.Thread.__init__(self)
-        self.lock = threading.Lock()
         self.parent = parent
         self.socket = parentsocket
+        self.lock = threading.Lock()
         self.logger = self.parent.logger
         self.shutdown = 0
         self.config = self.parent.config
@@ -98,16 +98,16 @@ class commandServer(threading.Thread):
 
     ## Connection handling ##
     def getGlobalUserID(self):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         self.parent.globalUserID += 1
         self.id = self.parent.globalUserID
-        self.lock.release()
+        self.parent.lock.release()
         return self.id
 
     def loginDone(self):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         self.parent.clients[int(self.id)] = self
-        self.lock.release()
+        self.parent.lock.release()
         self.handler.joinChat(1)
         return 1
 
@@ -115,15 +115,15 @@ class commandServer(threading.Thread):
         if not self.id:
             return
         self.handler.leaveChat(1)
-        self.lock.acquire()
+        self.parent.lock.acquire()
         self.parent.clients.pop(self.id)
-        self.lock.release()
+        self.parent.lock.release()
         return 1
 
     def getUserList(self):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         allclients = self.parent.clients
-        self.lock.release()
+        self.parent.lock.release()
         return allclients
 
     ### Users & Groups ###
@@ -137,9 +137,9 @@ class commandServer(threading.Thread):
         return self.parent.users.checkLogin(username, password)
 
     def banUser(self, user, nick, ip, end):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         result = self.parent.users.db.addBan(user, nick, ip, end)
-        self.lock.release()
+        self.parent.lock.release()
         if result:
             return 1
         return 0
@@ -149,23 +149,23 @@ class commandServer(threading.Thread):
 
     def addUser(self, data):
         # this is used for adding both users and groups since there is no real difference
-        self.lock.acquire()
+        self.parent.lock.acquire()
         result = self.parent.users.addUserDB(data)
-        self.lock.release()
+        self.parent.lock.release()
         if result:
             return 1
         return 0
 
     def getUsers(self):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         allusers = self.parent.users.users
-        self.lock.release()
+        self.parent.lock.release()
         return allusers
 
     def getGroups(self):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         allgroups = self.parent.users.groups
-        self.lock.release()
+        self.parent.lock.release()
         return allgroups
 
     def delUser(self, username):
@@ -181,31 +181,33 @@ class commandServer(threading.Thread):
         return 1
 
     def editUser(self, data):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         if not self.parent.db.updateElement(data, 1):
+            self.parent.lock.release()
             return 0
         self.parent.users.loadUserDB()
-        self.lock.release()
+        self.parent.lock.release()
         return 1
 
     def editGroup(self, data):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         if not self.parent.db.updateElement(data, 0):
+            self.parent.lock.release()
             return 0
         self.parent.users.loadUserDB()
-        self.lock.release()
+        self.parent.lock.release()
         return 1
 
     def updateUserPrivs(self, username, privs):
         for aid, aclient in self.parent.clients.iteritems():
             if aclient.user.user == username:
                 self.logger.debug("Priv change for online user %s", username)
-                self.lock.acquire()
+                aclient.lock.acquire()
                 aclient.user.mapPrivs(privs)
                 aclient.handler.PRIVILEGES([])
-                self.lock.release()
                 # notify online clients that account may have changed
                 aclient.handler.notifyAll("304 " + aclient.user.buildStatusChanged() + chr(4))
+                aclient.lock.release()
                 aclient.user.updateTransfers()
         return 1
 
@@ -213,15 +215,17 @@ class commandServer(threading.Thread):
         for aid, aclient in self.parent.clients.iteritems():
             if str(aclient.user.memberOfGroup) == str(groupname):
                 self.logger.debug("Priv change for online group member %s of %s", aclient.user.user, groupname)
-                self.lock.acquire()
+                aclient.lock.acquire()
                 aclient.user.mapPrivs(privs)
                 aclient.handler.PRIVILEGES([])
-                self.lock.release()
                 # same as above
+                aclient.lock.acquire()
                 aclient.handler.notifyAll("304 " + aclient.user.buildStatusChanged() + chr(4))
+                aclient.lock.release()
                 aclient.user.updateTransfers()
         return 1
 
+    ##  ??
     def updateServerInfo(self):
         info = self.handler.serverInfo()
         self.sendData(info)
@@ -229,25 +233,25 @@ class commandServer(threading.Thread):
 
     ### Chat ###
     def getGlobalPrivateChatID(self):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         self.parent.globalPrivateChatID += 1
         privateChatID = self.parent.globalPrivateChatID
-        self.lock.release()
+        self.parent.lock.release()
         return privateChatID
 
     def getTopic(self, chat):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         try:
             chattopic = self.parent.topics[int(chat)]
         except:
             chattopic = []
-        self.lock.release()
+        self.parent.lock.release()
         return chattopic
 
     def setTopic(self, newtopic, chat):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         self.parent.topics[int(chat)] = newtopic
-        self.lock.release()
+        self.parent.lock.release()
         return 1
 
     def releaseTopic(self, chat):
@@ -268,40 +272,42 @@ class commandServer(threading.Thread):
                 inthischat = 1
         if not inthischat:
             self.logger.debug("Released topic for chat %s", chat)
+            self.parent.lock.acquire()
             self.parent.topics.pop(int(chat), 0)
+            self.parent.lock.release()
         self.lock.release()
         return 1
 
     ## Files
     def queueTransfer(self, transfer):
         # add queue check here
-        self.lock.acquire()
+        self.parent.lock.acquire()
         self.parent.transferqueue[transfer.id] = transfer
         self.logger.debug("Queued transfer %s for user %s", transfer.id, self.user.user)
-        self.lock.release()
+        self.parent.lock.release()
         return 1
 
     def getAllTransfers(self):
         return self.parent.transferqueue
 
     def doSearch(self, searchString):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         result = self.parent.indexer.searchIndex(searchString)
-        self.lock.release()
+        self.partent.lock.release()
         return result
 
     ### News ###
     def postNews(self, newstext):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         self.parent.news.saveNews(self.user.nick, time.time(), newstext)
-        self.lock.release()
+        self.parent.lock.release()
         return 1
 
     def getNews(self):
         return reversed(self.parent.news.news)
 
     def clearNews(self):
-        self.lock.acquire()
+        self.parent.lock.acquire()
         self.parent.news.clearNews()
-        self.lock.release()
+        self.parent.lock.release()
         return 1

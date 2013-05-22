@@ -1,11 +1,13 @@
 import sqlite3
 from time import time
 import os
+from threading import RLock
 
 
 class wiredDB():
     def __init__(self, config, logger):
         self.conn = 0
+        self.lock = RLock()
         self.logger = logger
         self.config = config
         self.pointer = 0
@@ -43,12 +45,13 @@ class wiredDB():
         sql = "UPDATE wiredUsers SET password='" + str(data[1]) + "', groupname='" + str(data[2]) + "', privs='" +\
             str(data[3]) + "' WHERE name='" + str(data[0]) + "' AND type='" + str(type) + "';"
         result = self.pointer.execute(sql)
+        self.lock.acquire()
         self.conn.commit()
+        self.closeDB()
+        self.lock.release()
         if not result:
-            self.closeDB()
             self.logger.error("db failed to update a row")
             return 0
-        self.closeDB()
         return 1
 
     def deleteElement(self, username, type):
@@ -56,12 +59,13 @@ class wiredDB():
             return 0
         sql = "DELETE FROM wiredUsers WHERE name='" + str(username) + "' AND type='" + str(type) + "';"
         result = self.pointer.execute(sql)
+        self.lock.acquire()
         self.conn.commit()
+        self.closeDB()
+        self.lock.release()
         if not result:
-            self.closeDB()
             self.logger.error("db failed to delete a row")
             return 0
-        self.closeDB()
         return 1
 
     def loadData(self, type):
@@ -85,27 +89,33 @@ class wiredDB():
                                   chr(28) + '0' + chr(28) + '0' + chr(28) + '0'])
         self.conn.commit()
         data = 0
+        self.lock.acquire()
         self.pointer.execute("SELECT * FROM wiredUsers WHERE type=?;", [type])
         data = self.pointer.fetchall()
         if len(data) == 0:
             self.logger.info("userdb returned empty result for type %s", type)
             data = []
         self.closeDB()
+        self.lock.release()
         return data
 
     def saveUser(self, user):
         if not self.openDB():
             return 0
+        self.lock.acquire()
         self.pointer.execute("SELECT * FROM wiredUsers WHERE name = '" + str(user[0]) +
                              "' AND type ='" + str(user[3]) + "';")
         existing = self.pointer.fetchall()
+        self.lock.release()
         if existing:
             # user already exists!
             self.closeDB()
             return 0
+        self.lock.acquire()
         self.pointer.execute("INSERT INTO wiredUsers VALUES ('" + str(user[0]) + "','" + str(user[1]) + "', '" +
                              str(user[2]) + "', '" + str(user[3]) + "', '" + str(user[4]) + "');")
         self.conn.commit()
+        self.lock.release()
         self.closeDB()
         return 1
 
@@ -114,14 +124,18 @@ class wiredDB():
         if not self.openDB():
             return 0
         sql = 'create table if not exists wiredNews (nick TEXT, date FLOAT, news TEXT)'
+        self.lock.acquire()
         self.pointer.execute(sql)
         self.conn.commit()
+        self.lock.release()
         data = 0
+        self.lock.acquire()
         self.pointer.execute("SELECT * FROM wiredNews")
         data = self.pointer.fetchall()
         if not data:
             self.logger.error("db returned empty news")
             data = []
+        self.lock.release()
         self.closeDB()
         try:
             data = sorted(data, key=lambda anews: anews[1])
@@ -132,16 +146,20 @@ class wiredDB():
     def saveNews(self, news):
         if not self.openDB():
             return 0
+        self.lock.acquire()
         self.pointer.execute("INSERT INTO wiredNews VALUES (?,?,?);", [news[0], news[1], news[2]])
         self.conn.commit()
+        self.lock.release()
         self.closeDB()
         return 1
 
     def dropNews(self):
         if not self.openDB():
             return 0
+        self.lock.acquire()
         self.pointer.execute("DELETE FROM wiredNews")
         self.conn.commit()
+        self.lock.release()
         self.closeDB()
         return 1
 
@@ -151,9 +169,10 @@ class wiredDB():
             return 0
         sql = 'create table if not exists wiredIndex (name TEXT, type TEXT, size INTEGER, created FLOAT, \
               modified FLOAT, PRIMARY KEY(name));'
+        self.lock.acquire()
         self.pointer.execute(sql)
         self.conn.commit()
-        dbIsOpen = 1
+        self.lock.release()
         return 1
 
     def closeIndex(self):
@@ -166,22 +185,28 @@ class wiredDB():
         if not self.openIndex():
             return 0
         for aitem in filelist:
+            ## lock here already?
             self.pointer.execute("INSERT OR REPLACE INTO wiredIndex VALUES (?, ?, ?, ?, ?);",
                                  [str(aitem['name']), str(aitem['type']), str(aitem['size']), str(aitem['created']),
                                   str(aitem['modified'])])
+        self.lock.acquire()
         self.conn.commit()
+        self.lock.release()
         self.closeIndex()
         return 1
 
     def searchIndex(self, searchstring):
         self.openIndex()
         try:
+            self.lock.acquire()
             self.pointer.execute("SELECT * FROM wiredIndex WHERE name LIKE ?;", ['%' + str(searchstring) + '%'])
             result = self.pointer.fetchall()
         except:
             self.logger.error("Failed to process sqlite query for search term: %s", searchstring)
             self.closeIndex()
+            self.lock.release()
             return 0
+        self.lock.release()
         self.closeIndex()
         return result
 
@@ -198,7 +223,9 @@ class wiredDB():
                     continue  # all good
             # file vanished - remove from index
             self.pointer.execute("DELETE FROM wiredIndex WHERE name = ?", [aitem[0]])
+        self.lock.acquire()
         self.conn.commit()
+        self.lock.release()
         self.pointer.execute("VACUUM")
         self.conn.commit()
         self.closeIndex()
@@ -206,10 +233,11 @@ class wiredDB():
 
     def getServerSize(self):
         self.openIndex()
+        self.lock.acquire()
         self.pointer.execute("SELECT SUM(size) FROM wiredIndex WHERE TYPE = 'file';")
         result = self.pointer.fetchone()
-        self.pointer.fetchall()
         self.conn.commit()
+        self.lock.release()
         try:
             result = int(result[0])
         except TypeError:
@@ -219,10 +247,12 @@ class wiredDB():
 
     def getServerFiles(self):
         self.openIndex()
+        self.lock.acquire()
         self.pointer.execute("SELECT Count(*) FROM wiredIndex WHERE TYPE = 'file';")
         result = self.pointer.fetchone()
         self.conn.commit()
         self.closeIndex()
+        self.lock.release()
         try:
             result = int(result[0])
         except TypeError:
@@ -236,12 +266,14 @@ class wiredDB():
             return 0
         sql = 'create table if not exists bans (user TEXT, nick TEXT, ip TEXT, ends REAL);'
         try:
+            self.lock.acquire()
             self.pointer.execute(sql)
             self.conn.commit()
         except sqlite3.Error:
             self.logger.error("Failed to create ban table.")
+            self.lock.release()
             return 0
-        dbIsOpen = 1
+        self.lock.release()
         return 1
 
     def closeBans(self):
@@ -254,24 +286,30 @@ class wiredDB():
     def addBan(self, user, nick, ip, ends):
         self.openBans()
         try:
+            self.lock.acquire()
             self.pointer.execute("INSERT INTO bans VALUES (?,?,?,?);", [user, nick, ip, ends])
             self.conn.commit()
         except sqlite3.Error:
             self.logger.error("Failed to add ban to db")
             self.closeBans()
+            self.lock.release()
             return 0
+        self.lock.release()
         self.closeBans()
         return 1
 
     def checkBan(self, user, ip):
         self.openBans()
         try:
+            self.lock.acquire()
             self.pointer.execute("SELECT * FROM bans WHERE user = ? AND ip = ?;", [user, ip])
             data = self.pointer.fetchall()
         except sqlite3.Error:
             self.logger.error("Failed to query db bans")
+            self.lock.release()
             self.closeBans()
             return 0
+        self.lock.release()
         self.closeBans()
         if not data:
             return 0
@@ -289,13 +327,16 @@ class wiredDB():
     def removeBan(self, user, nick, ip, ends):
         self.openBans()
         try:
+            self.lock.acquire()
             self.pointer.execute("DELETE FROM bans WHERE user = ? AND nick = ? AND ip = ? AND ends = ?;",
                                  [user, nick, ip, ends])
             self.conn.commit()
             self.pointer.execute("VACUUM")
         except sqlite3.Error:
+            self.lock.release()
             self.closeBans()
             self.logger.error("Failed to delete ban from DB")
             return 0
+        self.lock.release()
         self.closeBans()
         return 1
