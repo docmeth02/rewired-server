@@ -116,8 +116,12 @@ class commandServer(threading.Thread):
             return
         self.handler.leaveChat(1)
         self.parent.lock.acquire()
-        self.parent.clients.pop(self.id)
+        try:
+            self.parent.clients.pop(self.id)
+        except:
+            pass
         self.parent.lock.release()
+        self.id = None
         return 1
 
     def getUserList(self):
@@ -153,6 +157,7 @@ class commandServer(threading.Thread):
         self.parent.lock.acquire()
         group = self.parent.users.getGroup(groupname)
         self.parent.lock.release()
+        return group
 
     def addUser(self, data):
         # this is used for adding both users and groups since there is no real difference

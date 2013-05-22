@@ -79,12 +79,12 @@ class commandHandler():
         self.parent.user.id = self.parent.getGlobalUserID()  # get ourself a shiny new userid
         if user[2]:  # group member
             group = self.parent.getGroup(str(user[2]))
-            self.logger.debug("User %s is a member of group %s", self.parent.user.user, group[0])
             if not group:
-                self.logger.error("Invalid group %s referenced for user %s", group[0], self.parent.user.user)
+                self.logger.error("Invalid group %s referenced for user %s", group, self.parent.user.user)
                 self.reject(510)
                 self.parent.shutdown = 1
                 return 0
+            self.logger.debug("User %s is a member of group %s", self.parent.user.user, group[0])
             self.parent.user.memberOfGroup = group[0]
             self.parent.user.mapPrivs(group[4])
         else:
@@ -568,12 +568,12 @@ class commandHandler():
         folder = wiredfiles.wiredFiles(self.parent)
         if not self.parent.user.checkPrivs("createFolders"):
             if not folder.isUploadFolder(parameters[0]):
-                print "parent folder is no upload folder: %s" % parameters[0]
+                self.logger.error("parent folder is no upload folder: %s", parameters[0])
                 self.reject(516)
                 return 0
             else:
                 type = 2
-                print "Allowing creation of uploadfolder %s" % parameters[0]
+                self.logger.error("Allowing creation of uploadfolder %s", parameters[0])
         if not folder.createFolder(parameters[0], type):
             # send error here
             self.logger.error("server failed to create folder %s", parameters[0])

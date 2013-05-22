@@ -42,7 +42,7 @@ class wiredDB():
     def updateElement(self, data, type):
         if not self.openDB():
             return 0
-        sql = "UPDATE wiredUsers SET password='" + str(data[1]) + "', groupname='" + str(data[2]) + "', privs='" +\
+        sql = "UPDATE wiredUsers SET password='" + str(data[1]) + "', groupname='" + str(data[2]) + "', privsvs='" +\
             str(data[3]) + "' WHERE name='" + str(data[0]) + "' AND type='" + str(type) + "';"
         result = self.pointer.execute(sql)
         self.lock.acquire()
