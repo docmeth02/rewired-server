@@ -15,7 +15,7 @@ class wiredDB():
 
     ## DB HANDLING ##
     def openDB(self):
-        self.conn = sqlite3.connect(self.config["dbFile"], check_same_thread=False)
+        self.conn = sqlite3.connect(self.config["dbFile"], check_same_thread=True)
         self.pointer = self.conn.cursor()
         self.conn.text_factory = str
         self.dbIsOpen = 1

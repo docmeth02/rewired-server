@@ -128,24 +128,31 @@ class commandServer(threading.Thread):
 
     ### Users & Groups ###
     def checkLogin(self, username, password, ip):
-        if self.parent.users.db.checkBan(username, ip):
+        self.parent.db.lock.acquire()
+        banned = self.parent.db.checkBan(username, ip)
+        self.parent.db.lock.release()
+        if banned:
             self.handler.reject(511)
             self.shutdown = 1
             self.socket.shutdown(socket.SHUT_RDWR)
             return 0
-
-        return self.parent.users.checkLogin(username, password)
+        self.parent.lock.acquire()
+        login = self.parent.users.checkLogin(username, password)
+        self.parent.lock.release()
+        return login
 
     def banUser(self, user, nick, ip, end):
-        self.parent.lock.acquire()
-        result = self.parent.users.db.addBan(user, nick, ip, end)
-        self.parent.lock.release()
+        self.parent.db.lock.acquire()
+        result = self.parent.db.addBan(user, nick, ip, end)
+        self.parent.db.lock.release()
         if result:
             return 1
         return 0
 
     def getGroup(self, groupname):
-        return self.parent.users.getGroup(groupname)
+        self.parent.lock.acquire()
+        group = self.parent.users.getGroup(groupname)
+        self.parent.lock.release()
 
     def addUser(self, data):
         # this is used for adding both users and groups since there is no real difference
@@ -169,37 +176,43 @@ class commandServer(threading.Thread):
         return allgroups
 
     def delUser(self, username):
-        if not self.parent.db.deleteElement(username, 1):
+        self.parent.db.lock.acquire()
+        result = self.parent.db.deleteElement(username, 1)
+        self.parent.db.lock.release()
+        if not result:
             return 0
         self.parent.users.loadUserDB()
         return 1
 
     def delGroup(self, username):
-        if not self.parent.db.deleteElement(username, 0):
+        self.parent.db.lock.acquire()
+        result = self.parent.db.deleteElement(username, 0)
+        self.parent.db.lock.acquire()
+        if not result:
             return 0
         self.parent.users.loadUserDB()
         return 1
 
     def editUser(self, data):
-        self.parent.lock.acquire()
-        if not self.parent.db.updateElement(data, 1):
-            self.parent.lock.release()
+        self.parent.db.lock.acquire()
+        result = self.parent.db.updateElement(data, 1)
+        self.parent.db.lock.release()
+        if not result:
             return 0
         self.parent.users.loadUserDB()
-        self.parent.lock.release()
         return 1
 
     def editGroup(self, data):
-        self.parent.lock.acquire()
-        if not self.parent.db.updateElement(data, 0):
-            self.parent.lock.release()
+        self.parent.db.lock.acquire()
+        result = self.parent.db.updateElement(data, 0)
+        self.parent.db.lock.release()
+        if not result:
             return 0
         self.parent.users.loadUserDB()
-        self.parent.lock.release()
         return 1
 
     def updateUserPrivs(self, username, privs):
-        for aid, aclient in self.parent.clients.iteritems():
+        for aid, aclient in self.parent.clients.items():
             if aclient.user.user == username:
                 self.logger.debug("Priv change for online user %s", username)
                 aclient.lock.acquire()
@@ -212,7 +225,7 @@ class commandServer(threading.Thread):
         return 1
 
     def updateGroupPrivs(self, groupname, privs):
-        for aid, aclient in self.parent.clients.iteritems():
+        for aid, aclient in self.parent.clients.items():
             if str(aclient.user.memberOfGroup) == str(groupname):
                 self.logger.debug("Priv change for online group member %s of %s", aclient.user.user, groupname)
                 aclient.lock.acquire()
