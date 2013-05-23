@@ -74,6 +74,7 @@ class wiredDB():
         # since there is no check if a table exists try to create basic userdb everytime we open the db
         self.pointer.execute('CREATE TABLE IF NOT EXISTS wiredUsers (name TEXT UNIQUE, password TEXT, groupname \
                              TEXT, type BOOL, privs TEXT, PRIMARY KEY(name))')  # type group/user 0/1
+        self.pointer.execute('PRAGMA journal_mode=WAL;')
         self.pointer.execute("INSERT OR IGNORE INTO wiredUsers VALUES (?, ?, ?, ?, ?);",
                              ["admin", "d033e22ae348aeb5660fc2140aec35850c4da997", '', 1, '1' + chr(28) + '1' +
                               chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) + '1' + chr(28) +
@@ -171,6 +172,7 @@ class wiredDB():
               modified FLOAT, PRIMARY KEY(name));'
         self.lock.acquire()
         self.pointer.execute(sql)
+        self.pointer.execute('PRAGMA journal_mode=WAL;')
         self.conn.commit()
         self.lock.release()
         return 1
@@ -213,7 +215,9 @@ class wiredDB():
     def pruneIndex(self, config, filelist):
         self.openIndex()
         self.pointer.execute("SELECT * FROM wiredIndex;")
+        self.lock.acquire()
         data = self.pointer.fetchall()
+        self.lock.release()
         lookup = {}
         for afile in filelist:
             lookup[afile['name']] = afile['type']
@@ -222,12 +226,14 @@ class wiredDB():
                 if lookup[aitem[0]] == aitem[1]:
                     continue  # all good
             # file vanished - remove from index
+            self.lock.acquire()
             self.pointer.execute("DELETE FROM wiredIndex WHERE name = ?", [aitem[0]])
+            self.conn.commit()
+            self.lock.release()
         self.lock.acquire()
-        self.conn.commit()
-        self.lock.release()
         self.pointer.execute("VACUUM")
         self.conn.commit()
+        self.lock.release()
         self.closeIndex()
         return 1
 
@@ -268,6 +274,7 @@ class wiredDB():
         try:
             self.lock.acquire()
             self.pointer.execute(sql)
+            self.pointer.execute('PRAGMA journal_mode=WAL;')
             self.conn.commit()
         except sqlite3.Error:
             self.logger.error("Failed to create ban table.")
