@@ -90,10 +90,13 @@ class commandServer(threading.Thread):
         raise SystemExit
 
     def sendData(self, data):
+        self.lock.acquire()
         try:
             self.socket.send(data)
         except:
+            self.lock.release()
             return 0
+        self.lock.release()
         return 1
 
     ## Connection handling ##
@@ -114,6 +117,7 @@ class commandServer(threading.Thread):
     def logOut(self):
         if not self.id:
             return
+        self.lock.acquire()
         self.handler.leaveChat(1)
         self.parent.lock.acquire()
         try:
@@ -122,6 +126,7 @@ class commandServer(threading.Thread):
             pass
         self.parent.lock.release()
         self.id = None
+        self.lock.release()
         return 1
 
     def getUserList(self):
@@ -132,23 +137,17 @@ class commandServer(threading.Thread):
 
     ### Users & Groups ###
     def checkLogin(self, username, password, ip):
-        self.parent.db.lock.acquire()
         banned = self.parent.db.checkBan(username, ip)
-        self.parent.db.lock.release()
         if banned:
             self.handler.reject(511)
             self.shutdown = 1
             self.socket.shutdown(socket.SHUT_RDWR)
             return 0
-        self.parent.lock.acquire()
         login = self.parent.users.checkLogin(username, password)
-        self.parent.lock.release()
         return login
 
     def banUser(self, user, nick, ip, end):
-        self.parent.db.lock.acquire()
         result = self.parent.db.addBan(user, nick, ip, end)
-        self.parent.db.lock.release()
         if result:
             return 1
         return 0
@@ -181,36 +180,28 @@ class commandServer(threading.Thread):
         return allgroups
 
     def delUser(self, username):
-        self.parent.db.lock.acquire()
         result = self.parent.db.deleteElement(username, 1)
-        self.parent.db.lock.release()
         if not result:
             return 0
         self.parent.users.loadUserDB()
         return 1
 
     def delGroup(self, username):
-        self.parent.db.lock.acquire()
         result = self.parent.db.deleteElement(username, 0)
-        self.parent.db.lock.acquire()
         if not result:
             return 0
         self.parent.users.loadUserDB()
         return 1
 
     def editUser(self, data):
-        self.parent.db.lock.acquire()
         result = self.parent.db.updateElement(data, 1)
-        self.parent.db.lock.release()
         if not result:
             return 0
         self.parent.users.loadUserDB()
         return 1
 
     def editGroup(self, data):
-        self.parent.db.lock.acquire()
         result = self.parent.db.updateElement(data, 0)
-        self.parent.db.lock.release()
         if not result:
             return 0
         self.parent.users.loadUserDB()
@@ -237,7 +228,6 @@ class commandServer(threading.Thread):
                 aclient.user.mapPrivs(privs)
                 aclient.handler.PRIVILEGES([])
                 # same as above
-                aclient.lock.acquire()
                 aclient.handler.notifyAll("304 " + aclient.user.buildStatusChanged() + chr(4))
                 aclient.lock.release()
                 aclient.user.updateTransfers()
@@ -278,9 +268,8 @@ class commandServer(threading.Thread):
             return 0
 
         inthischat = 0
-        self.lock.acquire()
         allclients = self.parent.clients
-        for aid, aclient in allclients.iteritems():
+        for aid, aclient in allclients.items():
             check = 0
             try:
                 check = aclient.user.activeChats[int(chat)]
@@ -293,7 +282,6 @@ class commandServer(threading.Thread):
             self.parent.lock.acquire()
             self.parent.topics.pop(int(chat), 0)
             self.parent.lock.release()
-        self.lock.release()
         return 1
 
     ## Files
@@ -301,31 +289,31 @@ class commandServer(threading.Thread):
         # add queue check here
         self.parent.lock.acquire()
         self.parent.transferqueue[transfer.id] = transfer
-        self.logger.debug("Queued transfer %s for user %s", transfer.id, self.user.user)
         self.parent.lock.release()
+        self.logger.debug("Queued transfer %s for user %s", transfer.id, self.user.user)
         return 1
 
     def getAllTransfers(self):
         return self.parent.transferqueue
 
     def doSearch(self, searchString):
-        self.parent.lock.acquire()
+        self.parent.indexer.lock.acquire()
         result = self.parent.indexer.searchIndex(searchString)
-        self.partent.lock.release()
+        self.parent.indexer.lock.release()
         return result
 
     ### News ###
     def postNews(self, newstext):
-        self.parent.lock.acquire()
+        self.parent.news.lock.acquire()
         self.parent.news.saveNews(self.user.nick, time.time(), newstext)
-        self.parent.lock.release()
+        self.parent.news.lock.release()
         return 1
 
     def getNews(self):
         return reversed(self.parent.news.news)
 
     def clearNews(self):
-        self.parent.lock.acquire()
+        self.parent.news.lock.acquire()
         self.parent.news.clearNews()
-        self.parent.lock.release()
+        self.parent.news.lock.release()
         return 1

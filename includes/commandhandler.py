@@ -196,11 +196,9 @@ class commandHandler():
 
     def MSG(self, parameters):
         clients = self.parent.getUserList()
-        self.parent.parent.lock.acquire()
         for aid, aclient in clients.items():
             if int(aclient.user.id) == int(parameters[0]):
                 aclient.sendData('305 ' + str(self.parent.user.id) + chr(28) + str(parameters[1]) + chr(4))
-        self.parent.parent.lock.release()
         return 1
 
     def BROADCAST(self, parameters):
@@ -263,11 +261,9 @@ class commandHandler():
         if (int(self.parent.user.id) == int(parameters[0])):
             return 0
         clients = self.parent.getUserList()
-        self.parent.parent.lock.acquire()
         for aid, aclient in clients.items():
             if aclient.id == int(parameters[0]):
                 aclient.sendData('331 ' + str(parameters[1]) + chr(28) + str(int(self.parent.id)) + chr(4))
-        self.parent.parent.lock.release()
         return 1
 
     def DECLINE(self, parameters):
@@ -284,11 +280,9 @@ class commandHandler():
         clients = self.parent.getUserList()
         userlist = self.parent.user.buildUserList()
         self.parent.user.activeChats[int(chat)] = time.time()  # time user joined this chat
-        self.parent.parent.lock.acquire()
         for aid, aclient in clients.items():
             if aclient.id != self.parent.id and int(chat) in aclient.user.activeChats:
                 aclient.sendData('302 ' + str(chat) + chr(28) + userlist + chr(4))
-        self.parent.parent.lock.release()
         return 1
 
     def LEAVE(self, parameters):
@@ -316,13 +310,13 @@ class commandHandler():
                     return 0
                 self.notifyAll("306 " + str(parameters[0]) + chr(28) + str(self.parent.id) +\
                 chr(28) + str(parameters[1]) + chr(4))
-                self.parent.parent.lock.acquire()
+                aclient.lock.acquire()
                 try:
                     aclient.shutdown = 1
                     aclient.socket.shutdown(socket.SHUT_RDWR)
                 except:
                     self.logger.error("Failed to terminate thread for user %s", aclient.user.nick)
-                self.parent.parent.lock.release()
+                aclient.lock.release()
 
                 self.logger.info("%s was kicked by %s", aclient.user.nick, self.parent.user.user)
         return 1
@@ -356,13 +350,13 @@ class commandHandler():
                                     float(time.time() + (int(duration) * 60)))
                 self.notifyAll('307 ' + str(aclient.id) + chr(28) + str(self.parent.id) + chr(28) + str(msg) + chr(4))
 
-                self.parent.parent.lock.acquire()
+                aclient.lock.acquire()
                 try:
                     aclient.shutdown = 1
                     aclient.socket.shutdown(socket.SHUT_RDWR)
                 except:
                     pass
-                self.parent.parent.lock.release()
+                aclient.lock.release()
         return 1
 
     ### USER MANAGEMENT ###
@@ -674,15 +668,12 @@ class commandHandler():
     ## Data handling ##
     def notifyAll(self, data):
         clients = self.parent.getUserList()
-        self.parent.parent.lock.acquire()
         for aid, aclient in clients.items():
             aclient.sendData(data)
-        self.parent.parent.lock.release()
         return 1
 
     def notifyChat(self, data, chat):
         clients = self.parent.getUserList()
-        self.parent.parent.lock.acquire()
         for aid, aclient in clients.items():
             try:
                 check = aclient.user.activeChats[int(chat)]
@@ -690,7 +681,6 @@ class commandHandler():
                 check = 0
             if check:
                 aclient.sendData(data)
-        self.parent.parent.lock.release()
         return 1
 
     def reject(self, reason):
