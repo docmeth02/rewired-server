@@ -14,7 +14,6 @@ import logging
 from transferserver import transferServer
 from commandserver import commandServer
 from time import sleep, time
-from struct import pack
 from sys import path
 from os import sep
 
@@ -84,10 +83,11 @@ class reWiredServer():
                         commandServer(self, self.commandSock.accept()).start()
                     if asocket == self.transferSock:
                         transferServer(self, self.transferSock.accept()).start()
-            except select.error as exception:
+            except select.error as e:
+                self.logger.error("SELECT ERROR: %s", e)
                 continue
-            except ssl.SSLError as exception:
-                self.logger.error(exception)
+            except ssl.SSLError as e:
+                self.logger.error("SSL ERROR: %s", e)
                 continue
         self.logger.info("Main thread shutdown initiated")
         while threading.active_count() > 1 and not self.bundled:
@@ -103,6 +103,7 @@ class reWiredServer():
             pass
         logging.shutdown()
 
+
     def serverShutdown(self, signum=None, frame=None):
         self.logger.info("Got signal: %s.Starting server shutdown", signum)
         # shutdown the server
@@ -114,13 +115,13 @@ class reWiredServer():
             self.threadDebugtimer.cancel()
             self.threadDebugtimer.join()
         for key, aclient in self.clients.items():
-            self.lock.acquire()
+            aclient.lock.acquire()
             try:
                 aclient.shutdown = 1
                 aclient.socket.shutdown(socket.SHUT_RDWR)
             except:
                 pass
-            self.lock.release()
+            aclient .lock.release()
         for key, atransfer in self.transferqueue.items():
             atransfer.parent.lock.acquire()
             atransfer.shutdown = 1
@@ -160,8 +161,8 @@ class reWiredServer():
                 aclient.lock.acquire()
                 aclient.serverSize = self.indexer.size
                 aclient.serverFiles = self.indexer.files
-                aclient.updateServerInfo()
                 aclient.lock.release()
+                aclient.updateServerInfo()
             self.indexer.lock.acquire()
             self.indexer.sizeChanged = 0
             self.indexer.lock.release()
