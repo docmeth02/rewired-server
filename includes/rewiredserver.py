@@ -89,6 +89,9 @@ class reWiredServer():
             except ssl.SSLError as e:
                 self.logger.error("SSL ERROR: %s", e)
                 continue
+            except Exception as e:
+                self.logger.error("Socket Error: %s", e)
+                continue
         self.logger.info("Main thread shutdown initiated")
         while threading.active_count() > 1 and not self.bundled:
             self.logger.info(str(threading.active_count()) + " threads still alive... " + str(threading.enumerate()))
