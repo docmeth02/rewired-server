@@ -7,7 +7,6 @@ import wiredindex
 import wiredtracker
 import signal
 import socket
-import ssl
 import select
 import threading
 import logging
@@ -17,6 +16,7 @@ from time import sleep, time
 from struct import pack
 from sys import path
 from os import sep
+from ssl import SSLError
 
 
 class reWiredServer():
@@ -86,7 +86,7 @@ class reWiredServer():
                         transferServer(self, self.transferSock.accept()).start()
             except select.error as exception:
                 continue
-            except ssl.SSLError as exception:
+            except SSLError as exception:
                 self.logger.error(exception)
                 continue
         self.logger.info("Main thread shutdown initiated")
@@ -211,11 +211,6 @@ class reWiredServer():
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.bind((self.config['host'], self.config['port']))
             sock.listen(4)
-            if not ssl.RAND_status():
-                self.logger.error("Warning: not enough random seed available!")
-                ssl.RAND_add(str(time()), time() * time())
-            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
-                                   keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
             return sock
         except:
                 self.logger.error("Can't bind to Port %s. Make sure it's not in use", self.config['port'])
@@ -235,8 +230,6 @@ class reWiredServer():
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.bind((self.config['host'], (int(self.config['port']) + 1)))
             sock.listen(4)
-            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
-                                   keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
             return sock
         except:
             self.logger.error("Can't bind to Port %s. Make sure it's not in use", self.config['port'] + 1)
