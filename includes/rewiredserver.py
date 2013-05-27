@@ -14,7 +14,6 @@ import logging
 from transferserver import transferServer
 from commandserver import commandServer
 from time import sleep, time
-from struct import pack
 from sys import path
 from os import sep
 
@@ -34,7 +33,7 @@ class reWiredServer():
         self.clients = {}
         self.topics = {}
         self.tracker = []
-        self.transferqueue = 0
+        self.transferqueue = None
         self.binpath = path[0] + sep
         self.threadDebugtimer = 0
         if not self.configfile:
@@ -42,6 +41,10 @@ class reWiredServer():
 
     def initialize(self):
         self.config = wiredfunctions.loadConfig(self.configfile)
+        if self.bundled:  # path to the git version file is differen when running in bundled mode
+            git = wiredfunctions.gitVersion("rewiredserver/includes")
+            if git:
+                self.config['appVersion'] = git
         self.logger = wiredfunctions.initLogger(self.config["logFile"], self.config["logLevel"])
         self.pid = wiredfunctions.initPID(self.config)
         self.logger.info("Server pid: %s", self.pid)
@@ -81,10 +84,14 @@ class reWiredServer():
                         commandServer(self, self.commandSock.accept()).start()
                     if asocket == self.transferSock:
                         transferServer(self, self.transferSock.accept()).start()
-            except select.error as exception:
+            except select.error as e:
+                self.logger.error("SELECT ERROR: %s", e)
                 continue
-            except ssl.SSLError as exception:
-                self.logger.error(exception)
+            except ssl.SSLError as e:
+                self.logger.error("SSL ERROR: %s", e)
+                continue
+            except Exception as e:
+                self.logger.error("Socket Error: %s", e)
                 continue
         self.logger.info("Main thread shutdown initiated")
         self.transferqueue.shutdown_active()  # stop all active transfers
@@ -112,15 +119,15 @@ class reWiredServer():
             self.threadDebugtimer.cancel()
             self.threadDebugtimer.join()
         for key, aclient in self.clients.items():
-            self.lock.acquire()
-            try:
-                aclient.shutdown = 1
-                aclient.socket.shutdown(socket.SHUT_RDWR)
-            except:
-                pass
-            self.lock.release()
+            with aclient.lock:
+                try:
+                    aclient.shutdown = 1
+                    aclient.socket.shutdown(socket.SHUT_RDWR)
+                except:
+                    pass
+        self.transferqueue.shutdown_active()
         if self.indexer:
-            self.indexer.keepalive = 0
+            self.indexer.shutdown = 1
         if self.tracker:
             for atracker in self.tracker:
                 atracker.keepalive = 0
@@ -153,8 +160,8 @@ class reWiredServer():
                 aclient.lock.acquire()
                 aclient.serverSize = self.indexer.size
                 aclient.serverFiles = self.indexer.files
-                aclient.updateServerInfo()
                 aclient.lock.release()
+                aclient.updateServerInfo()
             self.indexer.lock.acquire()
             self.indexer.sizeChanged = 0
             self.indexer.lock.release()

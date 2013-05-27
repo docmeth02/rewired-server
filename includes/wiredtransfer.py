@@ -161,10 +161,9 @@ class wiredTransferQueue():
             queue = self.uploads
             slots = self.config['uploadSlots']
 
-        self.parent.lock.acquire()
-        queuepos = len(queue)
-        queue[time.time()] = transfer
-        self.parent.lock.release()
+        with self.parent.lock:
+            queuepos = len(queue)
+            queue[time.time()] = transfer
 
         activeusertrans = len(self.get_user_transfers(transfer.userid, transfer.type, True))
         if not self.config['allowmultiple'] and activeusertrans:
@@ -189,16 +188,14 @@ class wiredTransferQueue():
         removed = 0
         for key, atransfer in self.downloads.items():
             if atransfer.id == transferid:
-                self.parent.lock.acquire()
-                del(self.downloads[key])
-                self.parent.lock.release()
+                with self.parent.lock:
+                    del(self.downloads[key])
                 removed = 1
 
         for key, atransfer in self.uploads.items():
             if atransfer.id == transferid:
-                self.parent.lock.acquire()
-                del(self.uploads[key])
-                self.parent.lock.release()
+                with self.parent.lock:
+                    del(self.uploads[key])
                 removed = 1
 
         # update queue
@@ -248,22 +245,19 @@ class wiredTransferQueue():
                     # take care of clients trying to start multiple transfers but aren't allowed to
                     activeusertf = len(self.get_user_transfers(queue[key].userid, queue[key].type, True))
                     if activeusertf:
-                        self.parent.lock.acquire()
-                        queue[key].queuepos = activeusertf - 1
-                        self.parent.lock.release()
+                        with self.parent.lock:
+                            queue[key].queuepos = activeusertf - 1
                         queue[key].parent.update_transfer(queue[key], queue[key].queuepos)
                         continue
-                self.parent.lock.acquire()
-                queue[key].parent.update_transfer(queue[key], "GO")
-                self.parent.lock.release()
+                with self.parent.lock:
+                    queue[key].parent.update_transfer(queue[key], "GO")
                 active += 1
                 continue
 
             if active >= slots:  # all seats are taken
                 queued += 1
-                self.parent.lock.acquire()
-                queue[key].parent.update_transfer(queue[key], queued)
-                self.parent.lock.release()
+                with self.parent.lock:
+                    queue[key].parent.update_transfer(queue[key], queued)
                 continue
         return 1
 
@@ -271,7 +265,12 @@ class wiredTransferQueue():
         for queue in [self.downloads, self.uploads]:
             for akey, atransfer in queue.items():
                 if atransfer.active:
-                    atransfer.parent.shutdown = 1
+                    with atransfer.parent.lock:
+                        try:
+                            atransfer.parent.shutdown = 1
+                            atransfer.parent.socket.shutdown(socket.SHUT_RDWR)
+                        except Exception as e:
+                            self.parent.logger.error("Shutdown transfer %s", e)
 
     def throttle_transferqueue(self, queue, slots, limit):
         transfers = self.get_active_transfers(queue)
@@ -281,8 +280,7 @@ class wiredTransferQueue():
         speed = round((limit * 1024) / active)
         for atransfer in transfers:
             if atransfer.limit != speed:
-                self.parent.lock.acquire()
-                atransfer.limit = speed
-                self.parent.lock.release()
+                with self.parent.lock:
+                    atransfer.limit = speed
                 self.parent.logger.debug("Speed of transfer %s set to %s kbytes", atransfer.id, (atransfer.limit / 1024))
         return 1
