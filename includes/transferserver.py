@@ -2,6 +2,7 @@ import threading
 import wiredfunctions
 import wireduser
 import wiredtransfer
+from ssl import SSLError, wrap_socket, PROTOCOL_TLSv1
 from socket import error as SOCKETERROR
 from socket import SHUT_RDWR
 
@@ -13,12 +14,14 @@ class transferServer(threading.Thread):
         self.parent = parent
         self.wiredlog = self.parent.wiredlog
         self.client = None
-        self.socket = socket
+        self.connection = socket
+        self.config = self.parent.config
+        self.socket = wrap_socket(self.connection, server_side=True, certfile=str(self.config['cert']), keyfile=str(
+            self.config['cert']), ssl_version=PROTOCOL_TLSv1)
         self.logger = self.parent.logger
         self.shutdown = 0
         self.transferDone = 0
         self.doTransfer = 0
-        self.config = self.parent.config
         if address[0][:7] == "::ffff:":
             self.ip = address[0][7:]
         else:

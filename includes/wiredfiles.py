@@ -5,8 +5,9 @@ import hashlib
 import diskusage
 import threading
 import wiredfunctions
+from time import time
 from fnmatch import fnmatch
-
+from tempfile import gettempprefix
 
 class wiredFiles():
     def __init__(self, parent):
@@ -21,6 +22,7 @@ class wiredFiles():
         try:
             stat = os.stat(targetpath)
         except OSError:
+            self.logger.error("stat failed: %s", targetpath)
             return 0
         hash = ""
         if os.path.isdir(targetpath):
@@ -110,7 +112,7 @@ class wiredFiles():
             if self.isDropBox(os.path.normpath(str(data[0]))):
                 return 1
         except:
-            print "ERROR in checkDropBoxinPath"
+            self.logger.error("ERROR in checkDropBoxinPath")
             return 1
         return 0
 
@@ -162,7 +164,7 @@ class wiredFiles():
                 try:
                     stat = os.stat(os.path.join(path, afile))
                 except OSError:
-                    print "Invalid File: " + str(os.path.join(path, afile))
+                    self.logger.error("Invalid File: %s", os.path.join(path, afile))
                     break
                 data.append({"name": name, "type": "file", "size": stat.st_size,
                              "modified": stat.st_mtime, "created": stat.st_ctime})
@@ -213,25 +215,30 @@ class wiredFiles():
         if os.path.isfile(path):
             try:
                 os.unlink(path)
-            except OSError:
+            except Exception as e:
+                self.logger("delete file: %s", e)
                 return 0
             return 1
         try:
             shutil.rmtree(path)
-        except OSError:
-            self.logger.error("Recursive delete failed on %s", path)
+        except Exception as e:
+            self.logger.error("Recursive delete failed on %s with %s", path, e)
             return 0
         return 1
 
     def move(self, src, dest):
         srcpath = str(self.rootpath) + str(src)
         destpath = str(self.rootpath) + str(dest)
-        print srcpath
-        print destpath
         if not os.path.exists(srcpath) or os.path.exists(destpath):
             if fscase() and srcpath.upper() == destpath.upper():
                 # case preserving fs and filename case change
-                pass
+                temp = os.path.join(os.path.dirname(destpath), "temp-%s" % time())
+                try:
+                    shutil.move(srcpath, temp)
+                except Exception as e:
+                    self.logger.error("Failed to move to tempfile: %s -> %s", src, temp)
+                    return 0
+                srcpath = temp
             else:
                 return 0
         try:
