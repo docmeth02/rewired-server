@@ -139,11 +139,19 @@ def loadConfig(confFile):
     trackerCategory = string(default="")
     trackerBandwidth = integer(default=1000000)
     serverPidFile = string(default="server.pid")
+
+    uploadSlots =  integer(default=5)
+    downloadSlots =  integer(default=5)
+    allowmultiple = boolean(default=True)
+    # limit maximum bandwidth of the server. Values are in kbytes per second. 0 to disable
+    uplimit =  integer(default=0)
+    downlimit =  integer(default=0)
+
     # server will make sure the guest user exists
     guestOn = boolean(default=True)
     # server will make sure the admin user exists
     adminOn = boolean(default=True)
-    # Disable users allowed to kick/ban top show up red in the userlist
+    # Disable users allowed to kick/ban to show up red in the userlist
     disableAdmins = boolean(default=False)
 
     # use index db to speedup file operations on remote filesystems. DON'T use this if

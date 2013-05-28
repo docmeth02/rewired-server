@@ -642,11 +642,13 @@ class commandHandler():
             self.logger.error("Invalid GET request: %s", parameters)
             ##send error
             return 0
-        self.parent.queueTransfer(transfer)
-        # add queued check here
-        response = "400 " + str(transfer.file) + chr(28) + str(transfer.offset) + chr(28) + str(transfer.id) + chr(4)
+        # queue transfer
+        queued = self.parent.queueTransfer(transfer)
+        if type(queued) == str:  # free slot - start right away
+            response = "400 " + str(transfer.file) + chr(28) + str(transfer.offset) + chr(28) + str(transfer.id) + chr(4)
+        else:  # send queue position
+            response = "401 " + str(transfer.file) + chr(28) + str(queued) + chr(4)
         self.parent.sendData(response)
-        self.logger.info("qeued transfer of %s for user %s (id: %s)", transfer.file, self.parent.user.user, transfer.id)
         return 1
 
     def PUT(self, parameters):
@@ -676,8 +678,12 @@ class commandHandler():
         transfer.id = transfer.genID()
         transfer.size = int(parameters[1])
         transfer.type = "UP"
-        self.parent.queueTransfer(transfer)
-        response = "400 " + str(transfer.file) + chr(28) + str(transfer.offset) + chr(28) + str(transfer.id) + chr(4)
+        # queue transfer
+        queued = self.parent.queueTransfer(transfer)
+        if type(queued) == str:
+            response = "400 " + str(transfer.file) + chr(28) + str(transfer.offset) + chr(28) + str(transfer.id) + chr(4)
+        else:  # send queue position
+            response = "401 " + str(transfer.file) + chr(28) + str(queued) + chr(4)
         self.parent.sendData(response)
         return 1
 
@@ -707,6 +713,23 @@ class commandHandler():
         self.wiredlog.log_event('SEARCH', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick,
                                            'SEARCH': parameters[0]})
         return 1
+
+    def update_transfer(self, transfer, queue):
+        # send status changes for queued transfers in this context
+
+        if type(queue) is str:
+            response = "400 " + str(transfer.file) + chr(28) + str(transfer.offset) + chr(28) + str(transfer.id) + chr(4)
+            self.parent.sendData(response)
+            return 1
+
+        # send updated queue position
+        response = "401 " + str(transfer.file) + chr(28) + str(queue) + chr(4)
+        self.parent.sendData(response)
+        return 1
+
+
+
+
 
     def serverInfo(self, proto=1.1):
         self.parent.protoVersion = proto

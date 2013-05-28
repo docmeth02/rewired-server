@@ -36,24 +36,28 @@ class transferServer(threading.Thread):
                     self.shutdown = 1
                     self.logger.error("Got invalid command on transfer port from %s", self.ip)
                     break
-                try:
-                    transfer = self.parent.transferqueue[transfer.id]
-                    transfer.active = 1
-                    transfer.parent = self
+                transfer = self.parent.transferqueue.get_transfer(transfer.id)
+                if not transfer:
+                    # probably send error here - not a valid transfer id
+                    self.logger.error("Invalid transfer id %s from %s", transfer.id, self.ip)
+                    self.shutdown = 1
+                    break
+                self.logger.debug("Found transfer id %s for %s", transfer.id, self.ip)
+                with self.parent.lock:
                     try:
                         self.client = self.parent.clients[int(transfer.userid)]
                     except KeyError:
                         self.logger.error("got transfer for invalid user id %s", transfer.userid)
                         self.shutdown = 1
                         break
-                except KeyError:
-                    # probably send error here - not a valid transfer id
-                    self.logger.error("Invalid transfer id %s from %s", transfer.id, self.ip)
-                    self.shutdown = 1
-                    break
-                self.logger.debug("Found transfer id %s for %s", transfer.id, self.ip)
-                self.doTransfer = 1
+                with self.lock:
+                    transfer.active = 1
+                    transfer.parent = self
+                    self.doTransfer = 1
                 if transfer.type == "DOWN":
+                    if self.config["downlimit"]:
+                        self.parent.transferqueue.throttle_transferqueue(self.parent.transferqueue.uploads,
+                                                                         self.config["downloadSlots"], self.config["downlimit"])
                     if not transfer.doDownload():
                         self.logger.error("Download %s to client %s failed.", transfer.id, self.ip)
                         self.wiredlog.log_event('DOWNLOAD', {'RESULT': 'ABORTED', 'USER': self.client.user.user,
@@ -65,6 +69,9 @@ class transferServer(threading.Thread):
                                                              'NICK': self.client.user.nick, 'FILE': transfer.file,
                                                              'SIZE': transfer.bytesdone})
                 if transfer.type == "UP":
+                    if self.config["uplimit"]:
+                        self.parent.transferqueue.throttle_transferqueue(self.parent.transferqueue.uploads,
+                                                                         self.config["uploadSlots"], self.config["uplimit"])
                     if not transfer.doUpload():
                         self.logger.error("Upload %s from client %s interrupted.", transfer.id, self.ip)
                         self.wiredlog.log_event('UPLOAD', {'RESULT': 'ABORTED', 'USER': self.client.user.user,
@@ -75,8 +82,18 @@ class transferServer(threading.Thread):
                         self.wiredlog.log_event('UPLOAD', {'RESULT': 'COMPLETE', 'USER': self.client.user.user,
                                                            'NICK': self.client.user.nick, 'FILE': transfer.file,
                                                            'SIZE': transfer.bytesdone})
+                with self.lock:
+                    if not self.parent.transferqueue.dequeue(transfer.id):
+                        self.logger.error("Failed to remove transfer %s from queue", transfer.id)
+                    del(transfer)
                 self.shutdown = 1
                 self.transferDone = 1
+                if self.config["downlimit"]:
+                    self.parent.transferqueue.throttle_transferqueue(self.parent.transferqueue.uploads,
+                                                                         self.config["downloadSlots"], self.config["downlimit"])
+                if self.config["uplimit"]:
+                    self.parent.transferqueue.throttle_transferqueue(self.parent.transferqueue.uploads,
+                                                                         self.config["uploadSlots"], self.config["uplimit"])
                 self.logger.debug("Exit tranfer thread")
                 break
             if not data:
@@ -89,12 +106,7 @@ class transferServer(threading.Thread):
         except SOCKETERROR:
             self.logger.info("Transfer client %s dropped connection", self.ip)
 
-        try:
-            self.lock.acquire(True)
-            self.parent.transferqueue.pop(transfer.id, None)
+        with self.parent.lock:
             self.parent.totaltransfers += 1
-            self.lock.release()
-            self.logger.debug("Transferserver: removed %s from server transferlist", transfer.id)
-        except Exception as e:
-            self.logger.error("Transferserver: Error when removing transfer: %s", e)
         self.logger.info("Transfer client %s disconnected", self.ip)
+        raise SystemExit

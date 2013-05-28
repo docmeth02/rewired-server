@@ -14,6 +14,7 @@ class wiredTransfer():
         self.logger = parent.logger
         self.config = self.parent.config
         self.time = time.time()
+        self.queuepos = 0
         self.active = 0
         self.type = None
         self.userid = 0
@@ -144,3 +145,142 @@ class wiredTransfer():
         if self.size == self.bytesdone:
             return 1
         return 0
+
+
+class wiredTransferQueue():
+    def __init__(self, parent):
+        self.parent = parent
+        self.config = self.parent.config
+        self.uploads = {}
+        self.downloads = {}
+
+    def queue_transfer(self, transfer):
+        queue = self.downloads
+        slots = self.config['downloadSlots']
+        if transfer.type == "UP":
+            queue = self.uploads
+            slots = self.config['uploadSlots']
+
+        with self.parent.lock:
+            queuepos = len(queue)
+            queue[time.time()] = transfer
+
+        activeusertrans = len(self.get_user_transfers(transfer.userid, transfer.type, True))
+        if not self.config['allowmultiple'] and activeusertrans:
+            # User tries to request multiple files but server rules forbid to do so
+            return len(self.get_user_transfers(transfer.userid, transfer.type)) - 1
+        elif queuepos >= slots:
+            active = self.get_active_count(queue)
+            transfer.queuepos = queuepos - active
+            return transfer.queuepos  # send queue position
+
+        else:
+            return "GO"
+
+    def get_transfer(self, transferid):
+        for queue in [self.downloads, self.uploads]:
+            for akey, atransfer in queue.items():
+                if atransfer.id == transferid:
+                    return atransfer
+        return 0
+
+    def dequeue(self, transferid):
+        removed = 0
+        for key, atransfer in self.downloads.items():
+            if atransfer.id == transferid:
+                with self.parent.lock:
+                    del(self.downloads[key])
+                removed = 1
+
+        for key, atransfer in self.uploads.items():
+            if atransfer.id == transferid:
+                with self.parent.lock:
+                    del(self.uploads[key])
+                removed = 1
+
+        # update queue
+        self.update_queue(self.uploads, self.config['uploadSlots'])
+        self.update_queue(self.downloads, self.config['downloadSlots'])
+
+        if removed:
+            return 1
+        return 0
+
+    def get_active_count(self, queue):
+        count = 0
+        for key, atransfer in queue.items():
+            if atransfer.active:
+                count += 1
+        return count
+
+    def get_active_transfers(self, queue):
+        active = []
+        for key, atransfer in queue.items():
+            if atransfer.active:
+                active.append(atransfer)
+        return active
+
+    def get_user_transfers(self, userid, ttype=False, active=False):
+        transfers = []
+        for queue in [self.uploads, self.downloads]:
+            for akey, atransfer in queue.items():
+                if atransfer.userid == userid:
+                    if ttype:
+                        if ttype != atransfer.type:
+                            continue
+                    if active and not atransfer.active:
+                        continue
+                    transfers.append(atransfer)
+        return transfers
+
+    def update_queue(self, queue, slots):
+        active, queued = (0, 0)
+        for key in sorted(queue.iterkeys()):
+            if queue[key].active:  # already running
+                active += 1
+                continue
+
+            if active < slots:  # free slot available
+                if not self.config['allowmultiple']:
+                    # take care of clients trying to start multiple transfers but aren't allowed to
+                    activeusertf = len(self.get_user_transfers(queue[key].userid, queue[key].type, True))
+                    if activeusertf:
+                        with self.parent.lock:
+                            queue[key].queuepos = activeusertf - 1
+                        queue[key].parent.update_transfer(queue[key], queue[key].queuepos)
+                        continue
+                with self.parent.lock:
+                    queue[key].parent.update_transfer(queue[key], "GO")
+                active += 1
+                continue
+
+            if active >= slots:  # all seats are taken
+                queued += 1
+                with self.parent.lock:
+                    queue[key].parent.update_transfer(queue[key], queued)
+                continue
+        return 1
+
+    def shutdown_active(self):
+        for queue in [self.downloads, self.uploads]:
+            for akey, atransfer in queue.items():
+                if atransfer.active:
+                    with atransfer.parent.lock:
+                        try:
+                            atransfer.parent.shutdown = 1
+                            atransfer.parent.socket.shutdown(socket.SHUT_RDWR)
+                        except Exception as e:
+                            self.parent.logger.error("Shutdown transfer %s", e)
+
+    def throttle_transferqueue(self, queue, slots, limit):
+        transfers = self.get_active_transfers(queue)
+        if not transfers:
+            return 0
+        active = len(transfers)
+        speed = round((limit * 1024) / active)
+        for atransfer in transfers:
+            if atransfer.limit != speed:
+                with self.parent.lock:
+                    atransfer.limit = speed
+                self.parent.logger.debug("Speed of transfer %s set to %s kbytes", atransfer.id, (atransfer.limit / 1024))
+        return 1

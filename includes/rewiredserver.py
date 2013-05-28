@@ -34,7 +34,7 @@ class reWiredServer():
         self.clients = {}
         self.topics = {}
         self.tracker = []
-        self.transferqueue = {}
+        self.transferqueue = None
         self.binpath = path[0] + sep
         self.threadDebugtimer = 0
         self.totaltransfers = 0
@@ -59,6 +59,7 @@ class reWiredServer():
         self.users.loadUserDB()
         self.indexer = wiredindex.wiredIndex(self)
         self.indexer.start()
+        self.transferqueue = wiredtransfer.wiredTransferQueue(self)
         if self.config['trackerUrl'] and self.config['trackerRegister']:
             self.initTrackers()
             self.logger.debug("%s tracker threads started", len(self.tracker))
@@ -107,6 +108,7 @@ class reWiredServer():
                 self.logger.error("Socket Error: %s", e)
                 continue
         self.logger.info("Main thread shutdown initiated")
+        self.transferqueue.shutdown_active()  # stop all active transfers
         while threading.active_count() > 1 and not self.bundled:
             self.logger.info(str(threading.active_count()) + " threads still alive... " + str(threading.enumerate()))
             sleep(1)
@@ -119,7 +121,6 @@ class reWiredServer():
         except AttributeError:
             pass
         logging.shutdown()
-
 
     def serverShutdown(self, signum=None, frame=None):
         self.logger.info("Got signal: %s.Starting server shutdown", signum)
@@ -135,18 +136,13 @@ class reWiredServer():
         if self.wiredlog:
             self.wiredlog.stop()
         for key, aclient in self.clients.items():
-            aclient.lock.acquire()
-            try:
-                aclient.shutdown = 1
-                aclient.socket.shutdown(socket.SHUT_RDWR)
-            except:
-                pass
-            aclient .lock.release()
-        for key, atransfer in self.transferqueue.items():
-            atransfer.parent.lock.acquire()
-            atransfer.shutdown = 1
-            atransfer.parent.socket.shutdown(socket.SHUT_RDWR)
-            atransfer.parent.lock.release()
+            with aclient.lock:
+                try:
+                    aclient.shutdown = 1
+                    aclient.socket.shutdown(socket.SHUT_RDWR)
+                except:
+                    pass
+        self.transferqueue.shutdown_active()
         if self.indexer:
             self.indexer.shutdown = 1
         if self.tracker:
@@ -188,10 +184,14 @@ class reWiredServer():
             self.indexer.lock.acquire()
             self.indexer.sizeChanged = 0
             self.indexer.lock.release()
-
         #check for index cache usage here
         self.indexer.pruneQueryCache()
-
+        if self.config["uplimit"]:
+            self.transferqueue.throttle_transferqueue(self.transferqueue.uploads,
+                                                      self.config["uploadSlots"], self.config["uplimit"])
+        if self.config["downlimit"]:
+            self.transferqueue.throttle_transferqueue(self.transferqueue.uploads,
+                                                      self.config["downloadSlots"], self.config["downlimit"])
         for aid, aclient in self.clients.items():
             if aclient.user.checkIdleNotify():
                 aclient.handler.notifyAll("304 " + str(aclient.user.buildStatusChanged()) + chr(4))
@@ -200,7 +200,7 @@ class reWiredServer():
                 self.lock.release()
 
             if not aclient.is_alive() or aclient.lastPing <= (time() - self.config['pingTimeout']):
-                self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",\
+                self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",
                                   aid, (time() - aclient.lastPing))
                 try:
                     aclient.logOut()
@@ -239,7 +239,7 @@ class reWiredServer():
             if not ssl.RAND_status():
                 self.logger.error("Warning: not enough random seed available!")
                 ssl.RAND_add(str(time()), time() * time())
-            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
+            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),
                                    keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
             return sock
         except:
@@ -260,7 +260,7 @@ class reWiredServer():
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.bind((self.config['host'], (int(self.config['port']) + 1)))
             sock.listen(4)
-            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
+            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),
                                    keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
             return sock
         except:
