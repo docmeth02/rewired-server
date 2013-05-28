@@ -3,7 +3,7 @@ try:
 except:
     print("Failed to load required module. Please install python M2crypto.")
     raise SystemExit
-
+from random import randrange
 from time import time
 
 
@@ -15,6 +15,8 @@ class reWiredCertificate():
         self.names = X509.X509_Name()
         self.names.C = "NA"
         self.names.ST = "NA"
+        self.names.L = "NA"
+        self.names.O = "re:wired"
         self.names.OU = "re:wired Server"
         self.names.CN = commonName
 
@@ -41,10 +43,10 @@ class reWiredCertificate():
         req, privateKey = self.createCertRequest(1024)
         publicKey = req.get_pubkey()
         cert = X509.X509()
-        cert.set_serial_number(1)
-        cert.set_version(1)
+        cert.set_serial_number(randrange(0, 65537))
+        cert.set_version(randrange(0, 65537))
         cert = self.setCertValid(cert)
-        cert.set_issuer(self.names)
+        cert.set_issuer(mk_ca_issuer())
         cert.set_subject(cert.get_issuer())
         cert.set_pubkey(publicKey)
         cert.add_ext(X509.new_extension('basicConstraints', 'CA:TRUE'))
@@ -54,8 +56,9 @@ class reWiredCertificate():
 
     def createCert(self):
         cert = X509.X509()
-        cert.set_serial_number(1)
-        cert.set_version(1)
+        cert.set_serial_number(randrange(0, 65537))
+        cert.set_version(randrange(0, 65537))
+        cert.set_issuer(mk_ca_issuer())
         cert = self.setCertValid(cert)
         return cert
 
@@ -68,6 +71,7 @@ class reWiredCertificate():
         cert.sign(pk1, 'sha1')
         self.cert = cert
         self.privateKey = pk2
+        self.cacert = cacert
         return 1
 
     def safeAsPem(self, filename):
@@ -75,8 +79,10 @@ class reWiredCertificate():
             return 0
         try:
             with open(filename, 'w') as f:
-                f.write(self.cert.as_pem())
                 f.write(self.privateKey.as_pem(None))
+                f.write(self.cert.as_pem())
+                f.write(self.cacert.as_pem())
+
         except:
             return 0
         return 1
@@ -100,3 +106,14 @@ class reWiredCertificate():
                 if afield[:3] == "CN=":
                     return afield[3:]
         return 0
+
+
+def mk_ca_issuer():
+    issuer = X509.X509_Name()
+    issuer.C = "NA"
+    issuer.CN = "re:wired CA"
+    issuer.ST = 'NA'
+    issuer.L = 'NA'
+    issuer.O = 're:wired Server'
+    issuer.OU = 're:wired Server'
+    return issuer

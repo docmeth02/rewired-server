@@ -5,6 +5,7 @@ import sys
 import os
 import wiredfunctions
 import wiredfiles
+import wireddb
 
 
 class wiredIndex(threading.Thread):
@@ -13,9 +14,10 @@ class wiredIndex(threading.Thread):
         self.lock = threading.Lock()
         self.parent = parent
         self.logger = self.parent.logger
-        self.keepalive = 1
+        self.shutdown = 0
         self.config = self.parent.config
-        self.db = self.parent.db
+        self.db = wireddb.wiredDB(self.config, self.logger)
+        self.searchdb = self.parent.db  # use parents db for searching since this ones is blocked while indexing
         self.enabled = int(self.config['doIndex'])
         self.interval = int(self.config['indexInterval'])
         self.size = 0
@@ -30,10 +32,10 @@ class wiredIndex(threading.Thread):
 
     def run(self):
         for i in range(1, 180):  # wait some time to let the server finish startup
-            if not self.keepalive:
+            if self.shutdown:
                 break
             time.sleep(1)
-        while self.keepalive:
+        while not self.shutdown:
             if time.time() >= self.nextRun:
                 self.indexRoot()
                 self.nextRun = time.time() + self.interval
@@ -48,13 +50,17 @@ class wiredIndex(threading.Thread):
         self.logger.debug("Gathering filelist...")
         try:
             rootlist = filehandler.getRecursiveDirList("/")  # get filelist
-        except:
-            self.logger.error("Indexer: Error while getting server filelist")
+        except Exception as e:
+            self.logger.error("Indexer: Error while getting server filelist: %s", e)
+        if self.shutdown:
+            return 0
         self.logger.debug("Pruning the index db...")
         try:
             self.db.pruneIndex(self.config, rootlist)  # check for deleted files and prune them from the db
         except:
             self.logger.error("'Indexer: Error while pruning index db")
+        if self.shutdown:
+            return 0
         self.logger.debug("Indexing files...")
         try:
             self.db.updateIndex(rootlist)  # update indexdb
@@ -70,7 +76,7 @@ class wiredIndex(threading.Thread):
 
     def searchIndex(self, searchString):
         try:
-            dbresult = self.db.searchIndex(str(searchString))
+            dbresult = self.searchdb.searchIndex(str(searchString))
         except:
             self.logger.error("Indexer: Error while processing search for term: %s", searchString)
             return 0

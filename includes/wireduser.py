@@ -1,6 +1,7 @@
 import time
 import socket
 import wiredfunctions
+from threading import Lock
 
 
 class wiredUserDB():

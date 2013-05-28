@@ -145,6 +145,9 @@ class wiredFiles():
         data = []
         for (path, dirs, files) in os.walk(dir, followlinks=True):
             for adir in dirs:
+                if hasattr(self.parent, 'shutdown') and hasattr(self.parent, 'nextRun'):
+                    if self.parent.shutdown:
+                        return 0
                 if adir[0][:1] == "." or self.matchPatterns(adir):
                     continue
                 name = "/" + os.path.relpath(os.path.join(path, adir), self.rootpath)
