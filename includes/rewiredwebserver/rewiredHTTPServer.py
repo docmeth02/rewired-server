@@ -58,11 +58,8 @@ class rewiredWebHandler:
     def get_active_transfers(self):
         up = 0
         down = 0
-        for akey, aitem in self.rewiredserver.transferqueue.items():
-            if aitem.type == "UP":
-                up += 1
-            else:
-                down += 1
+        up = self.rewiredserver.transferqueue.get_active_count(self.rewiredserver.transferqueue.uploads)
+        down = self.rewiredserver.transferqueue.get_active_count(self.rewiredserver.transferqueue.downloads)
         return {'up': up, 'down': down}
 
     def get_total_users(self):
