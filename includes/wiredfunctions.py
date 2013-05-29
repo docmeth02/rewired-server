@@ -6,6 +6,7 @@ import base64
 import logging
 import platform
 from subprocess import call
+from functools import wraps
 from time import time, strftime, localtime, timezone, altzone, daylight
 try:
     # This will fail on python > 2.7
@@ -299,3 +300,19 @@ def normWiredPath(path):
     path = path.replace('\\', '/')
     path = path.replace('//', '/')
     return path
+
+
+def handleException(excType, excValue, traceback):
+        from logging import getLogger
+        logger = getLogger("wiredServer")
+        logger.error("Uncaught exception", exc_info=(excType, excValue, traceback))
+
+
+def threading_excepthook(view):
+    @wraps(view)
+    def run(*args, **kwargs):
+        try:
+            return view(*args, **kwargs)
+        except:
+            sys.excepthook(*sys.exc_info())
+    return run

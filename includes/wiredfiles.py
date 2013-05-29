@@ -8,6 +8,8 @@ import wiredfunctions
 from time import time
 from fnmatch import fnmatch
 from tempfile import gettempprefix
+from logging import getLogger
+
 
 class wiredFiles():
     def __init__(self, parent):
@@ -333,6 +335,7 @@ class LISTgetter(threading.Thread):
         self.path = path
         self.sink = datasink
 
+    @wiredfunctions.threading_excepthook
     def run(self):
         files = wiredFiles(self)
         data = ""
@@ -360,11 +363,7 @@ class LISTgetter(threading.Thread):
         data += ('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
         if data:
             self.sink(data)
-        self.shutdown()
-
-    def shutdown(self):
-        #self.logger.debug("EXIT LISTgetter Thread")
-        sys.exit()
+        self.logger.debug("Exit ListGetter")
 
 
 class LISTRECURSIVEgetter(threading.Thread):
@@ -379,6 +378,7 @@ class LISTRECURSIVEgetter(threading.Thread):
         self.path = path
         self.sink = datasink
 
+    @wiredfunctions.threading_excepthook
     def run(self):
         files = wiredFiles(self)
         filelist = files.getRecursiveDirList(self.path)
@@ -401,8 +401,4 @@ class LISTRECURSIVEgetter(threading.Thread):
         data += ('411 ' + str(self.path) + chr(28) + str(spaceAvail) + chr(4))
         if data:
             self.sink(data)
-        self.shutdown()
-
-    def shutdown(self):
-        #self.logger.debug("EXIT LISTRECURSIVEgetter Thread")
-        sys.exit()
+        self.logger.debug("Exit ListRecursiveGetter")

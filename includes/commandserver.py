@@ -4,6 +4,7 @@ import sys
 import socket
 import wireduser
 import ipaddr
+import wiredfunctions
 from commandhandler import commandHandler
 from ssl import SSLError, wrap_socket, PROTOCOL_TLSv1
 try:

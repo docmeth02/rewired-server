@@ -4,6 +4,7 @@ import threading
 import ssl
 import sys
 import wireduser
+import wiredfunctions
 try:
     from M2Crypto import X509, RSA
 except:
@@ -48,6 +49,7 @@ class wiredTracker(threading.Thread):
         self.regrefresh = time.time() + 3600  # Refresh registration every 60 minutes
         self.retry = 10
 
+    @wiredfunctions.threading_excepthook
     def run(self):
         if not self.config['trackerRegister']:
             self.logger.info("Tracker disabled in config file.")
