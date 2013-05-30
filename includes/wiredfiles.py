@@ -123,6 +123,7 @@ class wiredFiles():
         try:
             list = os.listdir(dir)
         except OSError:
+            self.logger.error("Failed to list dir: %s", dir)
             return 0
         for aitem in list:
             if aitem[0] == "." or self.matchPatterns(aitem):     # skip matched file/dirnames
