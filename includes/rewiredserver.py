@@ -7,7 +7,6 @@ import wiredindex
 import wiredtracker
 import signal
 import socket
-import ssl
 import select
 import threading
 import logging
@@ -16,6 +15,7 @@ from commandserver import commandServer
 from time import sleep, time
 from sys import path
 from os import sep
+from ssl import SSLError
 
 
 class reWiredServer():
@@ -91,6 +91,9 @@ class reWiredServer():
                 continue
             except Exception as e:
                 self.logger.error("Socket Error: %s", e)
+                continue
+            except SSLError as exception:
+                self.logger.error(exception)
                 continue
         self.logger.info("Main thread shutdown initiated")
         while threading.active_count() > 1 and not self.bundled:
@@ -215,11 +218,6 @@ class reWiredServer():
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.bind((self.config['host'], self.config['port']))
             sock.listen(4)
-            if not ssl.RAND_status():
-                self.logger.error("Warning: not enough random seed available!")
-                ssl.RAND_add(str(time()), time() * time())
-            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
-                                   keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
             return sock
         except:
                 self.logger.error("Can't bind to Port %s. Make sure it's not in use", self.config['port'])
@@ -239,8 +237,6 @@ class reWiredServer():
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.bind((self.config['host'], (int(self.config['port']) + 1)))
             sock.listen(4)
-            sock = ssl.wrap_socket(sock, server_side=True, certfile=str(self.config['cert']),\
-                                   keyfile=str(self.config['cert']), ssl_version=ssl.PROTOCOL_TLSv1)
             return sock
         except:
             self.logger.error("Can't bind to Port %s. Make sure it's not in use", self.config['port'] + 1)

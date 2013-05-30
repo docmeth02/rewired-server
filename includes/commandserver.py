@@ -2,10 +2,11 @@ import threading
 import time
 import sys
 import socket
-import ssl
 import wireduser
 import ipaddr
+import wiredfunctions
 from commandhandler import commandHandler
+from ssl import SSLError, wrap_socket, PROTOCOL_TLSv1
 try:
     from dns import resolver, reversename
     from dns.resolver import NXDOMAIN
@@ -19,11 +20,13 @@ class commandServer(threading.Thread):
     def __init__(self, parent, (parentsocket, address)):
         threading.Thread.__init__(self)
         self.parent = parent
-        self.socket = parentsocket
         self.lock = threading.Lock()
+        self.config = self.parent.config
+        self.connection = parentsocket
+        self.socket = wrap_socket(self.connection, server_side=True, certfile=str(self.config['cert']), keyfile=str(
+            self.config['cert']), ssl_version=PROTOCOL_TLSv1)
         self.logger = self.parent.logger
         self.shutdown = 0
-        self.config = self.parent.config
         self.protoVersion = "1.1"
         self.user = wireduser.wiredUser(self)
         if address[0][:7] == "::ffff:":
@@ -56,7 +59,7 @@ class commandServer(threading.Thread):
                     char = 0
                     try:
                         char = self.socket.recv(1)
-                    except ssl.SSLError as e:
+                    except SSLError as e:
                         if str(e) == 'The read operation timed out':
                             pass
                         else:

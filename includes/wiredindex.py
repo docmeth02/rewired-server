@@ -26,6 +26,7 @@ class wiredIndex(threading.Thread):
         self.nextRun = 0
         self.updateServerSizeIndex()
 
+    @wiredfunctions.threading_excepthook
     def run(self):
         for i in range(1, 180):  # wait some time to let the server finish startup
             if self.shutdown:
