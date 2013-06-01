@@ -24,7 +24,7 @@ class wiredDB():
 
     def closeDB(self):
         if not self.dbIsOpen:
-            return false
+            return 0
         self.conn.close()
         self.dbIsOpen = 0
         self.lock.release()
