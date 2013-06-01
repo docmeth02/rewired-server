@@ -30,6 +30,7 @@ class wiredIndex(threading.Thread):
         self.queryCacheTTL = 600  # time in seconds query cache items expire after
         self.lastindex = 0
 
+    @wiredfunctions.threading_excepthook
     def run(self):
         for i in range(1, 180):  # wait some time to let the server finish startup
             if self.shutdown:
