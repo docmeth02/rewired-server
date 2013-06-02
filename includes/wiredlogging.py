@@ -209,7 +209,7 @@ class wiredlog():
                 value = format_size(int(value))
             replace += (value,)
         if replace:
-            string = string % replace
+            string = safe_string(string % replace)
 
         if extended and len(mapping[1]) >= 2:
             formated['EXTENDED'] = string
@@ -222,7 +222,7 @@ class wiredlog():
         else:
             formated['LOGIN'] = user
         if 'NICK' in data:
-            user += " (%s)" % data['NICK']
+            user += " (%s)" % safe_string(data['NICK'])
         formated['USER'] = user
         if 'RESULT' in data:
             formated['RESULT'] = data['RESULT'].lower()
@@ -279,7 +279,7 @@ class wiredlog():
                 values['lastseen'] = format_time(float(time()) - float(data[0][0])) + " ago."
             data = loads(data[0][3])
             if not 'nick' in values:
-                values['nick'] = data['NICK']
+                values['nick'] = safe_string(data['NICK'])
             if not 'ip' in values:
                 values['ip'] = data['IP']
         if not len(values):
@@ -306,3 +306,11 @@ def format_time(seconds):
     minutes = int((seconds // 60) % 60)
     seconds = int(seconds % 60)
     return "%s days, %s:%s:%s" % (days, str(hours).zfill(2), str(minutes).zfill(2), str(seconds).zfill(2))
+
+
+def safe_string(value):
+    try:
+        value = value.encode("utf-8")
+    except UnicodeError, TypeError:
+        value = unicode(value, "utf-8")
+    return value
