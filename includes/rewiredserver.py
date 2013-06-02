@@ -202,8 +202,7 @@ class reWiredServer():
         if not self.keeprunning:
             return 0
         self.logger.info(str(threading.active_count()) + " active threads:" + str(threading.enumerate()))
-        #self.threadDebugtimer = threading.Timer(1800.0, self.threadDebug)
-        self.threadDebugtimer = threading.Timer(30, self.threadDebug)
+        self.threadDebugtimer = threading.Timer(1800.0, self.threadDebug)
         self.threadDebugtimer.name = "ThreadDebugger"
         self.threadDebugtimer.start()
         return 1
