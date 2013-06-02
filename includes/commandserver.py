@@ -19,6 +19,7 @@ from traceback import format_exception
 class commandServer(threading.Thread):
     def __init__(self, parent, (parentsocket, address)):
         threading.Thread.__init__(self)
+        self.name = "CommandServer-"
         self.parent = parent
         self.wiredlog = self.parent.wiredlog
         self.lock = threading.Lock()
@@ -109,6 +110,7 @@ class commandServer(threading.Thread):
         self.parent.lock.acquire()
         self.parent.globalUserID += 1
         self.id = self.parent.globalUserID
+        self.name += str(self.id)
         self.parent.lock.release()
         return self.id
 
@@ -217,12 +219,11 @@ class commandServer(threading.Thread):
         for aid, aclient in self.parent.clients.items():
             if aclient.user.user == username:
                 self.logger.debug("Priv change for online user %s", username)
-                aclient.lock.acquire()
-                aclient.user.mapPrivs(privs)
+                with aclient.lock:
+                    aclient.user.mapPrivs(privs)
                 aclient.handler.PRIVILEGES([])
                 # notify online clients that account may have changed
                 aclient.handler.notifyAll("304 " + aclient.user.buildStatusChanged() + chr(4))
-                aclient.lock.release()
                 aclient.user.updateTransfers()
         return 1
 
@@ -230,12 +231,11 @@ class commandServer(threading.Thread):
         for aid, aclient in self.parent.clients.items():
             if str(aclient.user.memberOfGroup) == str(groupname):
                 self.logger.debug("Priv change for online group member %s of %s", aclient.user.user, groupname)
-                aclient.lock.acquire()
-                aclient.user.mapPrivs(privs)
+                with aclient.lock:
+                    aclient.user.mapPrivs(privs)
                 aclient.handler.PRIVILEGES([])
                 # same as above
                 aclient.handler.notifyAll("304 " + aclient.user.buildStatusChanged() + chr(4))
-                aclient.lock.release()
                 aclient.user.updateTransfers()
         return 1
 

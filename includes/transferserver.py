@@ -11,6 +11,7 @@ class transferServer(threading.Thread):
     def __init__(self, parent, (socket, address)):
         threading.Thread.__init__(self)
         self.lock = threading.Lock()
+        self.name = "transferServer-"
         self.parent = parent
         self.wiredlog = self.parent.wiredlog
         self.client = None
@@ -54,6 +55,7 @@ class transferServer(threading.Thread):
                         self.shutdown = 1
                         break
                 with self.lock:
+                    self.name += transfer.id
                     transfer.active = 1
                     transfer.parent = self
                     self.doTransfer = 1
