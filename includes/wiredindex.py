@@ -12,6 +12,7 @@ class wiredIndex(threading.Thread):
     def __init__(self, parent):
         threading.Thread.__init__(self)
         self.lock = threading.Lock()
+        self.name = "re:wiredIndexer"
         self.parent = parent
         self.logger = self.parent.logger
         self.shutdown = 0

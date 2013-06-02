@@ -19,6 +19,7 @@ from traceback import format_exception
 class commandServer(threading.Thread):
     def __init__(self, parent, (parentsocket, address)):
         threading.Thread.__init__(self)
+        self.name = "CommandServer-"
         self.parent = parent
         self.lock = threading.Lock()
         self.config = self.parent.config
@@ -107,6 +108,7 @@ class commandServer(threading.Thread):
         self.parent.lock.acquire()
         self.parent.globalUserID += 1
         self.id = self.parent.globalUserID
+        self.name += str(self.id)
         self.parent.lock.release()
         return self.id
 

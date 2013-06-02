@@ -11,6 +11,7 @@ class transferServer(threading.Thread):
     def __init__(self, parent, (socket, address)):
         threading.Thread.__init__(self)
         self.lock = threading.Lock()
+        self.name = "transferServer-"
         self.parent = parent
         self.connection = socket
         self.config = self.parent.config
@@ -38,6 +39,7 @@ class transferServer(threading.Thread):
                     break
                 try:
                     transfer = self.parent.transferqueue[transfer.id]
+                    self.name += transfer.id
                     transfer.active = 1
                     transfer.parent = self
                 except KeyError:
