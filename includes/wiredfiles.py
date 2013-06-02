@@ -364,6 +364,10 @@ class LISTgetter(threading.Thread):
         if data:
             self.sink(data)
         self.logger.debug("Exit ListGetter")
+        self.shutdown()
+
+    def shutdown(self):
+        raise SystemExit
 
 
 class LISTRECURSIVEgetter(threading.Thread):
@@ -402,3 +406,7 @@ class LISTRECURSIVEgetter(threading.Thread):
         if data:
             self.sink(data)
         self.logger.debug("Exit ListRecursiveGetter")
+        self.shutdown()
+
+    def shutdown(self):
+        raise SystemExit
