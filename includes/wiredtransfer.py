@@ -62,11 +62,18 @@ class wiredTransfer():
         tempfile = file + ".WiredTransfer"
         if self.offset:
             self.logger.debug("Transfer Offset set to: %s bytes (%s)", self.offset, self.file)
-            f = open(tempfile, "a+b")
-            self.bytesdone = int(self.offset)
+            try:
+                f = open(tempfile, "a+b")
+            except IOError:
+                self.logger.error("doUpload: failed to open requested path: %s", tempfile)
+                return 0
+            self.rx = int(self.offset)
         else:
-            f = open(tempfile, "w+b")
-
+            try:
+                f = open(tempfile, "w+b")
+            except IOError:
+                self.logger.error("doUpload: failed to open requested path: %s", tempfile)
+                return 0
         if not self.process(self.parent.socket, f):
             f.close()
             return 0
@@ -91,7 +98,12 @@ class wiredTransfer():
             return 0
         stat = os.stat(file)
         self.size = int(stat.st_size)
-        f = open(file, "rb")
+        try:
+            f = open(file, "rb")
+        except IOError:
+            self.logger.error("doDownload: failed to open requested file: %s", file)
+            return 0
+
         if self.offset:
             self.logger.debug("Transfer Offset set to: %s bytes (%s)", self.offset, self.file)
             f.seek(int(self.offset), 0)
