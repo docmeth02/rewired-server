@@ -1,5 +1,5 @@
 from sqlite3 import connect, Error
-from threading import Timer, Lock
+from threading import Timer, RLock
 from json import loads, dumps
 from time import time
 from json import loads
@@ -10,7 +10,7 @@ from time import strftime, localtime
 class wiredlog():
     def __init__(self, parent):
         self.parent = parent
-        self.lock = Lock()
+        self.lock = RLock()
         self.config = self.parent.config
         self.logger = self.parent.logger
         self.dbIsOpen = 0
@@ -23,8 +23,9 @@ class wiredlog():
         self.committimer.start()
 
     def openlog(self):
+        self.lock.acquire()
         try:
-            self.conn = connect(self.config['logdbFile'])
+            self.conn = connect(self.config['logdbFile'], check_same_thread=True)
             self.pointer = self.conn.cursor()
             self.conn.text_factory = str
             # make sure our db exist
@@ -55,6 +56,7 @@ class wiredlog():
             return 0
         self.conn.close()
         self.dbIsOpen = 0
+        self.lock.release()
         return 1
 
     def vacuum(self):
@@ -113,6 +115,7 @@ class wiredlog():
 
     def event_count(self):
         if not self.openlog():
+            self.lock.release()
             return 0
         if type(self.eventcount) is int:  # we looked this up before and nothing changed since
             return self.eventcount
@@ -128,19 +131,18 @@ class wiredlog():
 
     def commit_to_db(self, singlecommit=0):
         if not self.openlog():
+            self.lock.release()
             return 0
         if not len(self.buffer) and not singlecommit:
             self.committimer = Timer(60, self.commit_to_db)
             self.committimer.start()
             return 1
-        self.lock.acquire()
         buffer = len(self.buffer)
         for aevent in self.buffer:
             self.pointer.execute("INSERT INTO rewiredlog VALUES (?, ?, ?, ?);", [aevent['TIME'], aevent['USER'],
                                                                                  aevent['TYPE'], aevent['DATA']])
         self.conn.commit()
         self.buffer = []
-        self.lock.release()
         self.closelog()
         if not self.shutdown and not singlecommit:
             self.committimer = Timer(60, self.commit_to_db)

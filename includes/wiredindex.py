@@ -11,7 +11,7 @@ import wireddb
 class wiredIndex(threading.Thread):
     def __init__(self, parent):
         threading.Thread.__init__(self)
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.name = "re:wiredIndexer"
         self.parent = parent
         self.logger = self.parent.logger
@@ -122,14 +122,13 @@ class wiredIndex(threading.Thread):
 
     def getCachedDirList(self, path):
         # this needs to be threadsafe as all clients can access it concurrently
-        if path in self.queryCache:  # check for hit in ramcache
-            if self.queryCache[path]['date'] + 600 >= time.time():
-                self.logger.debug("query cache HIT on %s", path)
-                return self.queryCache[path]['data']  # still valid
+        with self.lock:
+            if path in self.queryCache:  # check for hit in ramcache
+                if self.queryCache[path]['date'] + 600 >= time.time():
+                    self.logger.debug("query cache HIT on %s", path)
+                    return self.queryCache[path]['data']  # still valid
 
-            self.lock.acquire()
-            self.queryCache.pop(path, 0)  # expired - purge it from cache
-            self.lock.release()
+                self.queryCache.pop(path, 0)  # expired - purge it from cache
             self.logger.debug("query cache item EXPIRED %s", path)
 
         if self.config['cachemode'].lower() != "index":
@@ -141,39 +140,37 @@ class wiredIndex(threading.Thread):
             self.logger.debug("Index cache EXPIRED on %s", path)
             return 0
 
-        self.lock.acquire()
-        result = self.db.getDirListing(path)
-        self.lock.release()
+        with self.lock:
+            result = self.searchdb.getDirListing(path)
 
         if result:
             self.logger.debug("index cache HIT on %s", path)
-            if not path in self.queryCache:  # add the result to ramcache
-                self.addQueryCache(path, result)
+            with self.lock:
+                if not path in self.queryCache:  # add the result to ramcache
+                    self.addQueryCache(path, result)
             return result
         self.logger.debug("index cache MISS on %s", path)
         return 0
 
     def addQueryCache(self, path, result):
-        self.lock.acquire()
-        self.queryCache[path] = {'date': time.time(), 'data': result}
-        self.lock.release()
+        with self.lock:
+            self.queryCache[path] = {'date': time.time(), 'data': result}
         return 1
 
     def pruneQueryCache(self):
-        self.lock.acquire()
-        length = len(self.queryCache)
-        for key, aitem in self.queryCache.items():
-            if aitem['date'] + self.queryCacheTTL <= time.time():
-                self.queryCache.pop(key, 0)
-                continue
+        with self.lock:
+            length = len(self.queryCache)
+            for key, aitem in self.queryCache.items():
+                if aitem['date'] + self.queryCacheTTL <= time.time():
+                    self.queryCache.pop(key, 0)
+                    continue
 
-        if len(self.queryCache) > self.queryCacheLimit:
-            # reduce length to queryCacheLimit
-            reducerange = sorted(self.queryCache, key=lambda x: self.queryCache[x]['date'])
-            for i in range(len(reducerange) - self.queryCacheLimit):
-                self.queryCache.pop(reducerange[i], 0)
+            if len(self.queryCache) > self.queryCacheLimit:
+                # reduce length to queryCacheLimit
+                reducerange = sorted(self.queryCache, key=lambda x: self.queryCache[x]['date'])
+                for i in range(len(reducerange) - self.queryCacheLimit):
+                    self.queryCache.pop(reducerange[i], 0)
 
-        self.lock.release()
-        if int(length) - len(self.queryCache):
-            self.logger.debug("pruneQueryCache: Removed %s expired items", (int(length) - len(self.queryCache)))
+            if int(length) - len(self.queryCache):
+                self.logger.debug("pruneQueryCache: Removed %s expired items", (int(length) - len(self.queryCache)))
         return 1
