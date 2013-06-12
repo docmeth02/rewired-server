@@ -560,6 +560,9 @@ class commandHandler():
     def FOLDER(self, parameters):
         type = 0
         folder = wiredfiles.wiredFiles(self.parent)
+        if os.path.exists(parameters[0]):  # folder already exists
+            self.reject(521)
+            return 1
         if not self.parent.user.checkPrivs("createFolders"):
             if not folder.isUploadFolder(parameters[0]):
                 self.logger.error("parent folder is no upload folder: %s", parameters[0])

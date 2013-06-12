@@ -65,15 +65,15 @@ def initLogger(logfile, level):
     log = logging.getLogger("wiredServer")
     log.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s: %(message)s', "%b %d %y - %H:%M:%S")
-    filelevel = logging.DEBUG  # default for now
+    debuglevel = logging.DEBUG  # default for now
     if level.upper() == "DEBUG":
-        filelevel = logging.DEBUG
+        debuglevel = logging.DEBUG
     if level.upper() == "INFO":
-        filelevel = logging.INFO
+        debuglevel = logging.INFO
     if level.upper() == "WARNING":
-        filelevel = logging.WARNING
+        debuglevel = logging.WARNING
     if level.upper() == "ERROR":
-        filelevel = logging.ERROR
+        debuglevel = logging.ERROR
     if level.upper() == "NONE":
         logFile = 0
     if logFile:
@@ -82,12 +82,12 @@ def initLogger(logfile, level):
         except IOError:
             print "Failed to open Logfile %s" % logfile
             raise SystemExit
-        filehandler.setLevel(filelevel)
+        filehandler.setLevel(debuglevel)
         filehandler.setFormatter(formatter)
         log.addHandler(filehandler)
     if logStdOut:
         streamhandler = logging.StreamHandler()
-        streamhandler.setLevel(logging.DEBUG)
+        streamhandler.setLevel(debuglevel)
         streamhandler.setFormatter(formatter)
         log.addHandler(streamhandler)
     return log
