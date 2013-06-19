@@ -119,23 +119,28 @@ class commandHandler():
             userlist[aclient.user.activeChats[int(chatid)]] = aclient
 
         for aid, aclient in sorted(userlist.items(), key=lambda x: x):
-                ip = ""
-                host = ""
-                user = ""
-                if (self.parent.user.checkPrivs("getUserInfo") and 'MODERATE' in self.config['securityModel'].upper())\
-                        or 'OFF' in self.config['securityModel'].upper():
-                    ip = aclient.user.ip
-                    host = aclient.user.host
-                    user = aclient.user.user
-                try:
-                    response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) +\
-                        str(aclient.user.idle) + chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) +\
-                        chr(28) + str(aclient.user.nick) + chr(28) + str(user) + chr(28) + str(ip) + chr(28) +\
-                        str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
-                    self.parent.sendData(response)
-                except Exception as e:
-                    self.logger.debug("WHO Error: %s %s", str(e), format_exc())
-                    continue
+            ip = aclient.user.ip
+            host = aclient.user.host
+            user = aclient.user.user
+            if not int(self.parent.user.checkPrivs("getUserInfo")):
+                if 'OFF' in self.config['securityModel'].upper():
+                    pass
+                elif 'MODERATE' in self.config['securityModel'].upper():
+                    ip = ""
+                    host = ""
+                elif 'PARANOID' in self.config['securityModel'].upper():
+                    ip = ""
+                    host = ""
+                    user = ""
+            try:
+                response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) +\
+                    str(aclient.user.idle) + chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) +\
+                    chr(28) + str(aclient.user.nick) + chr(28) + str(user) + chr(28) + str(ip) + chr(28) +\
+                    str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
+                self.parent.sendData(response)
+            except Exception as e:
+                self.logger.debug("WHO Error: %s %s", str(e), format_exc())
+                continue
 
         self.parent.sendData('311 ' + str(chatid) + chr(4))  # send userlist done
         return 1
