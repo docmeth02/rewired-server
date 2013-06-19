@@ -196,23 +196,21 @@ class reWiredServer():
         for aid, aclient in self.clients.items():
             if aclient.user.checkIdleNotify():
                 aclient.handler.notifyAll("304 " + str(aclient.user.buildStatusChanged()) + chr(4))
-                self.lock.acquire()
-                aclient.user.knownIdle = 1
-                self.lock.release()
+                with self.lock:
+                    aclient.user.knownIdle = 1
 
             if not aclient.is_alive() or aclient.lastPing <= (time() - self.config['pingTimeout']):
                 self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",
                                   aid, (time() - aclient.lastPing))
                 try:
                     aclient.logOut()
-                    self.lock.acquire()
-                    aclient.shutdown = 1
-                    aclient.socket.shutdown(socket.SHUT_RDWR)
-                    self.clients.pop(aclient.id, 0)
-                    self.lock.release()
+                    with self.lock:
+                        aclient.shutdown = 1
+                        aclient.socket.shutdown(socket.SHUT_RDWR)
+                        self.clients.pop(aclient.id, 0)
                 except socket.error:
-                    self.clients.pop(aclient.id, 0)
-                    self.lock.release()
+                    with self.lock:
+                        self.clients.pop(aclient.id, 0)
                     self.logger.error("Client %s: socket was already dead", aid)
         return 1
 

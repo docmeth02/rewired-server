@@ -127,6 +127,7 @@ class commandServer(threading.Thread):
         self.lock.acquire()
         self.handler.leaveChat(1)
         self.parent.lock.acquire()
+        self.parent.transferqueue.removeUserTransfers(self.id)  # remove all pending queued transfers
         try:
             self.parent.clients.pop(self.id)
         except:
