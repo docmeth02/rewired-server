@@ -196,6 +196,29 @@ class wiredTransferQueue():
                     return atransfer
         return 0
 
+    def removeUserTransfers(self, userid):
+        downs, ups = ([], [])
+        for akey, atransfer in self.downloads.items():
+            if atransfer.userid == userid:
+                downs.append(akey)
+
+        for akey, atransfer in self.uploads.items():
+            if atransfer.userid == userid:
+                ups.append(akey)
+
+        if downs:
+            for aid in downs:
+                del(self.downloads[aid])
+            self.parent.logger.info("Removed %s downloads for user %s", len(downs), userid)
+            self.update_queue(self.downloads, self.config['downloadSlots'])
+
+        if ups:
+            for aid in ups:
+                del(self.uploads[aid])
+            self.parent.logger.info("Removed %s uploads for user %s", len(ups), userid)
+            self.update_queue(self.uploads, self.config['uploadSlots'])
+        return 1
+
     def dequeue(self, transferid):
         removed = 0
         for key, atransfer in self.downloads.items():
@@ -203,19 +226,21 @@ class wiredTransferQueue():
                 with self.parent.lock:
                     del(self.downloads[key])
                 removed = 1
+                break
 
         for key, atransfer in self.uploads.items():
             if atransfer.id == transferid:
                 with self.parent.lock:
                     del(self.uploads[key])
                 removed = 1
+                break
 
         # update queue
-        self.update_queue(self.uploads, self.config['uploadSlots'])
-        self.update_queue(self.downloads, self.config['downloadSlots'])
-
         if removed:
+            self.update_queue(self.uploads, self.config['uploadSlots'])
+            self.update_queue(self.downloads, self.config['downloadSlots'])
             return 1
+
         return 0
 
     def get_active_count(self, queue):
