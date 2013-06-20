@@ -33,6 +33,7 @@ class wiredlog():
                                  type TEXT, data TEXT)')
             self.conn.commit()
         except:
+            self.lock.release()
             self.logger.error("Failed to open logging db")
             return 0
         self.dbIsOpen = 1
@@ -77,7 +78,8 @@ class wiredlog():
         except:
             pass
         event['DATA'] = dumps(data)
-        self.buffer.append(event)
+        with self.lock:
+            self.buffer.append(event)
         if self.debug:
             self.logger.debug("Logged event: %s", str(event))
         return 1
@@ -115,7 +117,6 @@ class wiredlog():
 
     def event_count(self):
         if not self.openlog():
-            self.lock.release()
             return 0
         if type(self.eventcount) is int:  # we looked this up before and nothing changed since
             return self.eventcount
@@ -130,13 +131,12 @@ class wiredlog():
         return count
 
     def commit_to_db(self, singlecommit=0):
-        if not self.openlog():
-            self.lock.release()
-            return 0
         if not len(self.buffer) and not singlecommit:
             self.committimer = Timer(60, self.commit_to_db)
             self.committimer.start()
             return 1
+        if not self.openlog():
+            return 0
         buffer = len(self.buffer)
         for aevent in self.buffer:
             self.pointer.execute("INSERT INTO rewiredlog VALUES (?, ?, ?, ?);", [aevent['TIME'], aevent['USER'],
