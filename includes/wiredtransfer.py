@@ -67,7 +67,7 @@ class wiredTransfer():
             except IOError:
                 self.logger.error("doUpload: failed to open requested path: %s", tempfile)
                 return 0
-            self.rx = int(self.offset)
+            self.bytesdone = int(self.offset)
         else:
             try:
                 f = open(tempfile, "w+b")
