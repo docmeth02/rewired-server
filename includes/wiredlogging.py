@@ -78,8 +78,7 @@ class wiredlog():
         except:
             pass
         event['DATA'] = dumps(data)
-        with self.lock:
-            self.buffer.append(event)
+        self.buffer.append(event)
         if self.debug:
             self.logger.debug("Logged event: %s", str(event))
         return 1
