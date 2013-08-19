@@ -115,12 +115,18 @@ class wiredTransfer():
         return 0
 
     def process(self, input, output):
+        DEFAULTCHUNKSIZE = 65536
+        chunksize = DEFAULTCHUNKSIZE
         interval, data_count, lastbytes, sleep_for = (1.0, 0, 0, 0)
         time_next = time.time() + interval
         while not self.parent.shutdown:
+            chunksize = DEFAULTCHUNKSIZE
+            if self.limit:
+                if chunksize > self.limit:
+                    chunksize = self.limit
             buf = ""
             try:
-                buf = input.read(512)  # smaller chunks = smoother, more accurate
+                buf = input.read(chunksize)  # smaller chunks = smoother, more accurate
             except:
                 break
             if not buf:  # empty string means dead socket or eof
