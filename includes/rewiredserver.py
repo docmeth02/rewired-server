@@ -15,7 +15,8 @@ from transferserver import transferServer
 from commandserver import commandServer
 from time import sleep, time
 from sys import path
-from os import sep
+from os import sep, unlink
+import os.path
 from ssl import SSLError
 
 
@@ -38,6 +39,7 @@ class reWiredServer():
         self.binpath = path[0] + sep
         self.threadDebugtimer = 0
         self.totaltransfers = 0
+        self.statssock = None
         if not self.configfile:
             self.configfile = self.binpath + "server.conf"
 
@@ -78,6 +80,8 @@ class reWiredServer():
         try:
             self.commandSock = self.open_command_socket()
             self.transferSock = self.open_transfer_socket()
+            if self.config['statsSocket']:
+                self.open_stats_socket()
         except:
             pass
         self.houseKeeping()
@@ -90,14 +94,21 @@ class reWiredServer():
             signal.signal(signal.SIGINT, self.serverShutdown)
             signal.signal(signal.SIGTERM, self.serverShutdown)
             signal.signal(signal.SIGFPE, self.restartTracker)
+        listensockets = [self.commandSock, self.transferSock]
+        if self.statssock:
+            listensockets.append(self.statssock)
         while self.keeprunning:
             try:
-                inputready, outputready, exceptready = select.select([self.commandSock, self.transferSock], [], [], 1)
+                inputready, outputready, exceptready = select.select(listensockets, [], [], 1)
                 for asocket in inputready:
                     if asocket == self.commandSock:
                         commandServer(self, self.commandSock.accept()).start()
                     if asocket == self.transferSock:
                         transferServer(self, self.transferSock.accept()).start()
+                    if asocket == self.statssock:
+                        conn, addr = asocket.accept()
+                        conn.send("Hello!\n")
+                        conn.close()
             except select.error as e:
                 self.logger.error("SELECT ERROR: %s", e)
                 continue
@@ -154,6 +165,12 @@ class reWiredServer():
             self.commandSock.close()
         if hasattr(self, 'transferSock'):
             self.transferSock.close()
+        if self.statssock:
+            self.statssock.close()
+            try:
+                unlink(self.config['statsSocket'])
+            except:
+                self.logger.error("Failed to remove local socket file %s", self.config['statsSocket'])
         wiredfunctions.removePID(self.config)
         try:
             for ahandler in self.logger.handlers:
@@ -261,6 +278,21 @@ class reWiredServer():
             self.serverShutdown()
             system.exit()
         return sock
+
+    def open_stats_socket(self):
+        if self.config['statsSocket']:
+            if os.path.exists(self.config['statsSocket']):
+                # try to unlink socket first
+                try:
+                    unlink(self.config['statsSocket'])
+                except Exception as e:
+                    self.logger.error("Failed to remove already existing socket files %s" % self.config['statsSocket'])
+                    return 0
+            self.statssock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.statssock.bind(self.config['statsSocket'])
+            self.statssock.listen(1)
+            self.logger.debug("Listening on local socket %s", self.config['statsSocket'])
+        return 1
 
     def restartTracker(self, signum, frame):
         self.logger.info("Restarting tracker threads...")

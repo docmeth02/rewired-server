@@ -176,6 +176,8 @@ def loadConfig(confFile):
     webIfBind = string(default="0.0.0.0")
     webIfPort =  integer(default=8443)
     webIfUsers = list(default=list("admin"))
+    # socket that exposes status information to other processes. disabled when left empty.
+    statsSocket = string(default="/tmp/rewired.stats")
     """
     spec = default.split("\n")
     config = ConfigObj(confFile, list_values=True, stringify=True, configspec=spec)
