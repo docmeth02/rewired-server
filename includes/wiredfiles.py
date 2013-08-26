@@ -243,7 +243,7 @@ class wiredFiles():
                 return 0
         try:
             shutil.move(srcpath, destpath)
-        except (IOError, OSError) as e:
+        except Exception as e:
             self.logger.error("Move failed: %s -> %s: %s", srcpath, destpath, e)
             return 0
         if os.path.exists(srcpath) or not os.path.exists(destpath):
