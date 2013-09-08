@@ -324,7 +324,10 @@ def fscase():
 
 
 def touch(fname, times=None):
-    if not open(fname, 'w').close():
+    try:
+        if not open(fname, 'w').close():
+            return 0
+    except IOError:
         return 0
     return 1
 
