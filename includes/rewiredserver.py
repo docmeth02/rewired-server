@@ -98,14 +98,8 @@ class reWiredServer():
                         commandServer(self, self.commandSock.accept()).start()
                     if asocket == self.transferSock:
                         transferServer(self, self.transferSock.accept()).start()
-            except select.error as e:
-                self.logger.error("SELECT ERROR: %s", e)
-                continue
-            except SSLError as e:
-                self.logger.error("SSL ERROR: %s", e)
-                continue
             except Exception as e:
-                self.logger.error("Select Socket Error: %s", e)
+                self.logger.error("Socket Error: %s", e)
                 continue
         self.logger.info("Main thread shutdown initiated")
         self.transferqueue.shutdown_active()  # stop all active transfers
