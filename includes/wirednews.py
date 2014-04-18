@@ -3,6 +3,7 @@ import os
 import sys
 from threading import RLock
 
+
 class wiredNews():
     def __init__(self, db):
         self.lock = RLock()
@@ -21,7 +22,7 @@ class wiredNews():
 
     def saveNews(self, nick, date, news):
         news = news.replace('\n', chr(24))
-        news = [unicode(str(nick), 'utf8'), date, unicode(news, 'utf8')]
+        news = [self._decode(nick), date, self._decode(news)]
         self.db.saveNews(news)
         self.lock.acquire()
         self.news.append(news)
@@ -40,3 +41,13 @@ class wiredNews():
         self.lock.release()
         self.loadNews()
         return 1
+
+    @staticmethod
+    def _decode(string):
+        string = str(string)
+        decoded = None
+        try:
+            decoded = unicode(string, 'utf-8')
+        except:
+            decoded = unicode(string, 'utf-8', "replace")
+        return decoded
