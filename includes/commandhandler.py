@@ -109,23 +109,25 @@ class commandHandler():
             userlist[aclient.user.activeChats[int(chatid)]] = aclient
 
         for aid, aclient in sorted(userlist.items(), key=lambda x: x):
-                ip = ""
-                host = ""
-                user = ""
-                if (self.parent.user.checkPrivs("getUserInfo") and 'MODERATE' in self.config['securityModel'].upper())\
-                        or 'OFF' in self.config['securityModel'].upper():
-                    ip = aclient.user.ip
-                    host = aclient.user.host
-                    user = aclient.user.user
-                try:
-                    response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) + str(aclient.user.idle) +\
-                        chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
-                        str(aclient.user.nick) + chr(28) + str(user) + chr(28) + str(ip) + chr(28) +\
-                        str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
-                    self.parent.sendData(response)
-                except Exception as e:
-                    self.logger.debug("WHO Error: %s %s", str(e), format_exc())
-                    continue
+            if aclient.user.id is None:  # skip users that are not logged in yet
+                continue
+            ip = ""
+            host = ""
+            user = ""
+            if (self.parent.user.checkPrivs("getUserInfo") and 'MODERATE' in self.config['securityModel'].upper())\
+                    or 'OFF' in self.config['securityModel'].upper():
+                ip = aclient.user.ip
+                host = aclient.user.host
+                user = aclient.user.user
+            try:
+                response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) + str(aclient.user.idle) +\
+                    chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
+                    str(aclient.user.nick) + chr(28) + str(user) + chr(28) + str(ip) + chr(28) +\
+                    str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
+                self.parent.sendData(response)
+            except Exception as e:
+                self.logger.debug("WHO Error: %s %s", str(e), format_exc())
+                continue
         self.parent.sendData('311 ' + str(chatid) + chr(4))  # send userlist done
         return 1
 
@@ -143,7 +145,8 @@ class commandHandler():
         return 1
 
     def SAY(self, parameters):
-        if not len(parameters[1]):
+        if not len(parameters[1]) or self.parent.user.id is None:
+            self.ligger.error('SAY: invalid parameters')
             return 0
         clients = self.parent.getUserList()
         chatid = int(parameters[0])
@@ -154,7 +157,8 @@ class commandHandler():
         return 1
 
     def ME(self, parameters):
-        if not len(parameters[1]):
+        if not len(parameters[1]) or self.parent.user.id is None:
+            self.logger.error('ME: invalid parameters')
             return 0
         chatid = parameters[0]
         data = '301 ' + str(chatid) + chr(28) + str(self.parent.user.id) + chr(28) + str(parameters[1]) + chr(4)
@@ -197,9 +201,13 @@ class commandHandler():
     def MSG(self, parameters):
         clients = self.parent.getUserList()
         for aid, aclient in clients.items():
+            if aclient.user.id is None:
+                continue
             if int(aclient.user.id) == int(parameters[0]):
                 aclient.sendData('305 ' + str(self.parent.user.id) + chr(28) + str(parameters[1]) + chr(4))
-        return 1
+                return 1
+            # raise user not found error
+        return 0
 
     def BROADCAST(self, parameters):
         if not self.parent.user.checkPrivs("broadcast"):
@@ -290,7 +298,7 @@ class commandHandler():
         return 1
 
     def leaveChat(self, chat):
-        if not self.parent.user.loginDone:
+        if not self.parent.user.loginDone or self.parent.user.id is None:
             return 0  # don't send leave for clients with failed logins
         self.parent.user.activeChats.pop(int(chat), 0)
         data = '303 ' + str(chat) + chr(28) + str(self.parent.user.id) + chr(4)

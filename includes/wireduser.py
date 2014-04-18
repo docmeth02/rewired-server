@@ -51,6 +51,7 @@ class wiredUser():
         self.logger = parent.logger
         self.activeChats = {}
         self.memberOfGroup = 0
+        self.id = None
         self.chat = None
         self.user = None
         self.idle = 0
