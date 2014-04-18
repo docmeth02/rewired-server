@@ -118,8 +118,9 @@ class wiredTracker(threading.Thread):
             if not self.keepalive:
                 return 0
             self.logger.debug("Connected to tracker %s", self.tracker)
-            self.tlssock.write("REGISTER " + str(self.category) + chr(28) + str(self.uri) + chr(28) + str(self.servername)\
-                               + chr(28) + str(self.bandwidth) + chr(28) + str(self.desc) + chr(4))
+            self.tlssock.write("REGISTER " + str(self.category) + chr(28) + str(self.uri) + chr(28)
+                               + str(self.servername) + chr(28) + str(self.bandwidth) + chr(28)
+                               + str(self.desc) + chr(4))
             response = self.tlssock.recv(8096)
             if int(response[:3]) != 700:
                 self.logger.error("Error registering to tracker %s", self.tracker)
@@ -159,8 +160,13 @@ class wiredTracker(threading.Thread):
             self.logger.error("updateTracker: No certificate found!")
             return 0
         self.udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        msg = "UPDATE " + str(self.hash) + chr(28) + str(self.onlineUsers) + chr(28) + str(self.guest) + chr(28) +\
-        str(self.download) + chr(28) + str(self.files) + chr(28) + str(self.size) + chr(4)
+        msg = ("UPDATE %s%s%s%s%s%s%s%s%s%s%s%s" % (
+            self.hash, chr(28),
+            self.onlineUsers, chr(28),
+            self.guest, chr(28),
+            self.download, chr(28),
+            self.files, chr(28),
+            self.size, chr(4)))
         try:
             cert = ""
             cert = X509.load_cert_string(self.cert, X509.FORMAT_DER)  # parse the cert
@@ -171,7 +177,12 @@ class wiredTracker(threading.Thread):
         pub_key = cert.get_pubkey()
         rsa_key = pub_key.get_rsa()
         msg = rsa_key.public_encrypt(msg, RSA.pkcs1_oaep_padding)
-        if not self.udpsock.sendto(msg, (self.tracker, self.port)):
+        try:
+            result = self.udpsock.sendto(msg, (self.tracker, self.port))
+        except Exception as e:
+            self.logger.error('Exception %s in updateTracker()' % e)
+            result = None
+        if not result:
             self.logger.error("Error sending update packet to tracker %s", self.tracker)
             return 0
         self.logger.debug("Updated tracker %s", self.tracker)
