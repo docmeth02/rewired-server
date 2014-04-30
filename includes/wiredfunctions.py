@@ -128,7 +128,7 @@ def loadConfig(confFile):
     pingTimeout = integer(default=600)
     dbFile = string(default="rewiredDB.db")
     doIndex = boolean(default=True)
-    fileRoot =string(default="files")
+    fileRoot =string(default="data/files")
     indexInterval = integer(default=1800)
     host = string(default="0.0.0.0")
     serverDesc = string(default="A re:Wired Server")
