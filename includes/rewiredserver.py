@@ -46,6 +46,11 @@ class reWiredServer():
             if git:
                 self.config['appVersion'] = git
         self.logger = wiredfunctions.initLogger(self.config["logFile"], self.config["logLevel"])
+        platform = wiredfunctions.getPlatform()
+        self.logger.info("Starting re:wired %s on %s - %s (%s) Python %s" %
+                         (self.config['appVersion'], platform['OS'],
+                         platform['OSVersion'], platform['ARCH'], platform['PYTHON']))
+        wiredfunctions.platformHints(self.logger)
         self.pid = wiredfunctions.initPID(self.config)
         self.logger.info("Server pid: %s", self.pid)
         self.db = wireddb.wiredDB(self.config, self.logger)
@@ -105,7 +110,6 @@ class reWiredServer():
         except AttributeError:
             pass
         logging.shutdown()
-
 
     def serverShutdown(self, signum=None, frame=None):
         self.logger.info("Got signal: %s.Starting server shutdown", signum)
@@ -180,7 +184,7 @@ class reWiredServer():
                 self.lock.release()
 
             if not aclient.is_alive() or aclient.lastPing <= (time() - self.config['pingTimeout']):
-                self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",\
+                self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",
                                   aid, (time() - aclient.lastPing))
                 try:
                     aclient.logOut()

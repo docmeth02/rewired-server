@@ -670,8 +670,8 @@ class commandHandler():
         platform = wiredfunctions.getPlatform()
         serverstart = wiredfunctions.wiredTime(str(self.parent.config['serverStarted']))
         msg = "200 " + str(self.parent.config['appName']) + "/" + str(self.parent.config['appVersion']) +\
-        " (" + platform['OS'] + "; " + str(platform['OSVersion']) + "; " + platform['ARCH'] + ") (" +\
-        platform['TLSLib'] + ')' + chr(28) + str(self.parent.protoVersion) + chr(28) +\
+        " (" + platform['OS'] + "; " + str(platform['OSVersion']) + "; " + platform['ARCH'] + " Python " +\
+        platform['PYTHON'] + ") (" + platform['TLSLib'] + ')' + chr(28) + str(self.parent.protoVersion) + chr(28) +\
         (self.parent.config['serverName']) + chr(28) + str(self.parent.config['serverDesc']) + chr(28) +\
         serverstart + chr(28) + str(self.parent.serverFiles) + chr(28) + str(self.parent.serverSize) + chr(4)
         return msg

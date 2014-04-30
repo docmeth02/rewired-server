@@ -37,7 +37,8 @@ def utcOffset(offset):
 
 
 def getPlatform():
-    sysplatform = {'OS': "unkown", 'OSVersion': "unkown", 'ARCH': "unkown", 'TLSLib': "unkown"}
+    sysplatform = {'OS': "unkown", 'OSVersion': "unkown", 'ARCH': "unkown", 'TLSLib': "unkown",
+                   'PYTHON': platform.python_version()}
     if checkPlatform("Windows"):
         try:
             sysplatform['OS'] = platform.system()
@@ -57,6 +58,15 @@ def getPlatform():
     except:
         pass
     return sysplatform
+
+
+def platformHints(logger):
+    if checkPlatform('Windows'):
+        logger.info("Notice: running re:wired on windows is unsupported!!!")
+        return
+    if checkPlatform('FreeBSD'):
+        logger.info("Notice: FreeBSD users may need to set net.inet6.ip6.v6only=0 to have dualstack connectivity.")
+        return
 
 
 def initLogger(logfile, level):
