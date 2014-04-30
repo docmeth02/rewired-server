@@ -305,8 +305,8 @@ def normWiredPath(path):
 def handleException(excType, excValue, traceback):
         if excType == SystemExit:  # Don't log us ending threads using SystemExit
             return 0
-        from logging import getLogger
-        logger = getLogger("wiredServer")
+        logger = logging.getLogger("wiredServer")
+        logging.basicConfig()
         logger.error("Uncaught exception", exc_info=(excType, excValue, traceback))
 
 
