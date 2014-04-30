@@ -1,4 +1,8 @@
-import sqlite3
+try:
+    import sqlite3
+except:
+    print "Failed to load required module. Please install python sqlite3 support."
+    raise SystemExit
 from time import time
 import os
 from threading import RLock
