@@ -1,0 +1,52 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          rewired-server
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:
+### END INIT INFO
+
+DAEMON_PATH="/opt/rewired-server"
+
+DAEMON="/opt/rewired-server/server.py"
+DAEMONOPTS=""
+USER=wired
+GROUP=wired
+NAME="re:wired Server"
+DESC="The re:wired server"
+PIDFILE=/opt/rewired-server/server.pid
+SCRIPTNAME=/etc/init.d/rewired-server
+
+case "$1" in
+start)
+	printf "%-50s" "Starting $NAME..."
+        start-stop-daemon --start --oknodo -c $USER -g $GROUP -d $DAEMON_PATH -b -p $PIDFILE -x $DAEMON
+;;
+status)
+        printf "%-50s" "Checking $NAME..."
+        if [ -f $PIDFILE ]; then
+            PID=`cat $PIDFILE`
+            if [ -z "`ps axf | grep ${PID} | grep -v grep`" ]; then
+                printf "%s\n" "Process dead but pidfile exists"
+            else
+                echo "Running"
+            fi
+        else
+            printf "%s\n" "Service not running"
+        fi
+;;
+stop)
+        printf "%-50s" "Stopping $NAME"
+             start-stop-daemon --stop --oknodo -c $USER -g $GROUP -p $PIDFILE -s TERM --retry 60
+;;
+
+restart)
+  	$0 stop
+  	$0 start
+;;
+
+*)
+        echo "Usage: $0 {status|start|stop|restart}"
+        exit 1
+esac
