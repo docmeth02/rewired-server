@@ -12,7 +12,8 @@ config = wiredfunctions.loadConfig(binpath + "server.conf")
 
 
 def shutdown():
-    global config
+    global config, binpath
+    os.chdir(binpath)
     pid = wiredfunctions.getPID(config)
     if int(pid) > 0:
         os.kill(int(pid), signal.SIGTERM)
@@ -26,7 +27,8 @@ def shutdown():
 
 
 def signalTrackerRestart():
-    global config
+    global config, binpath
+    os.chdir(binpath)
     pid = wiredfunctions.getPID(config)
     if int(pid) > 0:
         os.kill(int(pid), signal.SIGFPE)
@@ -36,6 +38,7 @@ def signalTrackerRestart():
 
 def start():
     global config, binpath
+    os.chdir(binpath)
     pid = wiredfunctions.getPID(config)
     if pid:
         print "server already running as pid " + str(pid) + " or stale pid file."
