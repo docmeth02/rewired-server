@@ -318,13 +318,12 @@ class commandHandler():
                     return 0
                 self.notifyAll("306 " + str(parameters[0]) + chr(28) + str(self.parent.id) +\
                 chr(28) + str(parameters[1]) + chr(4))
-                aclient.lock.acquire()
-                try:
-                    aclient.shutdown = 1
-                    aclient.socket.shutdown(socket.SHUT_RDWR)
-                except:
-                    self.logger.error("Failed to terminate thread for user %s", aclient.user.nick)
-                aclient.lock.release()
+                with aclient.lock:
+                    try:
+                        aclient.shutdown = 1
+                        aclient.socket.shutdown(socket.SHUT_RDWR)
+                    except:
+                        self.logger.error("Failed to terminate thread for user %s", aclient.user.nick)
 
                 self.logger.info("%s was kicked by %s", aclient.user.nick, self.parent.user.user)
         return 1
@@ -358,13 +357,12 @@ class commandHandler():
                                     float(time.time() + (int(duration) * 60)))
                 self.notifyAll('307 ' + str(aclient.id) + chr(28) + str(self.parent.id) + chr(28) + str(msg) + chr(4))
 
-                aclient.lock.acquire()
-                try:
-                    aclient.shutdown = 1
-                    aclient.socket.shutdown(socket.SHUT_RDWR)
-                except:
-                    pass
-                aclient.lock.release()
+                with aclient.lock:
+                    try:
+                        aclient.shutdown = 1
+                        aclient.socket.shutdown(socket.SHUT_RDWR)
+                    except:
+                        pass
         return 1
 
     ### USER MANAGEMENT ###

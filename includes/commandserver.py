@@ -94,50 +94,43 @@ class commandServer(threading.Thread):
         raise SystemExit
 
     def sendData(self, data):
-        self.lock.acquire()
-        try:
-            self.socket.send(data)
-        except:
-            self.lock.release()
-            return 0
-        self.lock.release()
+        with self.lock:
+            try:
+                self.socket.send(data)
+            except:
+                return 0
         return 1
 
     ## Connection handling ##
     def getGlobalUserID(self):
-        self.parent.lock.acquire()
-        self.parent.globalUserID += 1
-        self.id = self.parent.globalUserID
-        self.name += str(self.id)
-        self.parent.lock.release()
+        with self.parent.lock:
+            self.parent.globalUserID += 1
+            self.id = self.parent.globalUserID
+            self.name += str(self.id)
         return self.id
 
     def loginDone(self):
-        self.parent.lock.acquire()
-        self.parent.clients[int(self.id)] = self
-        self.parent.lock.release()
+        with self.parent.lock:
+            self.parent.clients[int(self.id)] = self
         self.handler.joinChat(1)
         return 1
 
     def logOut(self):
         if not self.id:
             return
-        self.lock.acquire()
-        self.handler.leaveChat(1)
-        self.parent.lock.acquire()
-        try:
-            self.parent.clients.pop(self.id)
-        except:
-            pass
-        self.parent.lock.release()
-        self.id = None
-        self.lock.release()
+        with self.lock:
+            self.handler.leaveChat(1)
+            with self.parent.lock:
+                try:
+                    self.parent.clients.pop(self.id)
+                except:
+                    pass
+            self.id = None
         return 1
 
     def getUserList(self):
-        self.parent.lock.acquire()
-        allclients = self.parent.clients
-        self.parent.lock.release()
+        with self.parent.lock:
+            allclients = self.parent.clients
         return allclients
 
     ### Users & Groups ###
@@ -158,30 +151,26 @@ class commandServer(threading.Thread):
         return 0
 
     def getGroup(self, groupname):
-        self.parent.lock.acquire()
-        group = self.parent.users.getGroup(groupname)
-        self.parent.lock.release()
+        with self.parent.lock:
+            group = self.parent.users.getGroup(groupname)
         return group
 
     def addUser(self, data):
         # this is used for adding both users and groups since there is no real difference
-        self.parent.lock.acquire()
-        result = self.parent.users.addUserDB(data)
-        self.parent.lock.release()
+        with self.parent.lock:
+            result = self.parent.users.addUserDB(data)
         if result:
             return 1
         return 0
 
     def getUsers(self):
-        self.parent.lock.acquire()
-        allusers = self.parent.users.users
-        self.parent.lock.release()
+        with self.parent.lock:
+            allusers = self.parent.users.users
         return allusers
 
     def getGroups(self):
-        self.parent.lock.acquire()
-        allgroups = self.parent.users.groups
-        self.parent.lock.release()
+        with self.parent.lock:
+            allgroups = self.parent.users.groups
         return allgroups
 
     def delUser(self, username):
@@ -236,7 +225,6 @@ class commandServer(threading.Thread):
                 aclient.user.updateTransfers()
         return 1
 
-    ##  ??
     def updateServerInfo(self):
         info = self.handler.serverInfo()
         self.sendData(info)
@@ -244,25 +232,22 @@ class commandServer(threading.Thread):
 
     ### Chat ###
     def getGlobalPrivateChatID(self):
-        self.parent.lock.acquire()
-        self.parent.globalPrivateChatID += 1
-        privateChatID = self.parent.globalPrivateChatID
-        self.parent.lock.release()
+        with self.parent.lock:
+            self.parent.globalPrivateChatID += 1
+            privateChatID = self.parent.globalPrivateChatID
         return privateChatID
 
     def getTopic(self, chat):
-        self.parent.lock.acquire()
-        try:
-            chattopic = self.parent.topics[int(chat)]
-        except:
-            chattopic = []
-        self.parent.lock.release()
+        with self.parent.lock:
+            try:
+                chattopic = self.parent.topics[int(chat)]
+            except:
+                chattopic = []
         return chattopic
 
     def setTopic(self, newtopic, chat):
-        self.parent.lock.acquire()
-        self.parent.topics[int(chat)] = newtopic
-        self.parent.lock.release()
+        with self.parent.lock:
+            self.parent.topics[int(chat)] = newtopic
         return 1
 
     def releaseTopic(self, chat):
@@ -282,17 +267,15 @@ class commandServer(threading.Thread):
                 inthischat = 1
         if not inthischat:
             self.logger.debug("Released topic for chat %s", chat)
-            self.parent.lock.acquire()
-            self.parent.topics.pop(int(chat), 0)
-            self.parent.lock.release()
+            with self.parent.lock:
+                self.parent.topics.pop(int(chat), 0)
         return 1
 
     ## Files
     def queueTransfer(self, transfer):
         # add queue check here
-        self.parent.lock.acquire()
-        self.parent.transferqueue[transfer.id] = transfer
-        self.parent.lock.release()
+        with self.parent.lock:
+            self.parent.transferqueue[transfer.id] = transfer
         self.logger.debug("Queued transfer %s for user %s", transfer.id, self.user.user)
         return 1
 
@@ -300,23 +283,20 @@ class commandServer(threading.Thread):
         return self.parent.transferqueue
 
     def doSearch(self, searchString):
-        self.parent.indexer.lock.acquire()
-        result = self.parent.indexer.searchIndex(searchString)
-        self.parent.indexer.lock.release()
+        with self.parent.indexer.lock:
+            result = self.parent.indexer.searchIndex(searchString)
         return result
 
     ### News ###
     def postNews(self, newstext):
-        self.parent.news.lock.acquire()
-        self.parent.news.saveNews(self.user.nick, time.time(), newstext)
-        self.parent.news.lock.release()
+        with self.parent.news.lock:
+            self.parent.news.saveNews(self.user.nick, time.time(), newstext)
         return 1
 
     def getNews(self):
         return reversed(self.parent.news.news)
 
     def clearNews(self):
-        self.parent.news.lock.acquire()
-        self.parent.news.clearNews()
-        self.parent.news.lock.release()
+        with self.parent.news.lock:
+            self.parent.news.clearNews()
         return 1

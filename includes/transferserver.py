@@ -59,9 +59,8 @@ class transferServer(threading.Thread):
                         self.logger.error("Upload %s from client %s interrupted.", transfer.id, self.ip)
                     else:
                         self.logger.info("Upload %s for client %s finished successfully", transfer.id, self.ip)
-                self.lock.acquire(True)
-                self.parent.transferqueue.pop(transfer.id, None)
-                self.lock.release()
+                with self.lock:
+                    self.parent.transferqueue.pop(transfer.id, None)
                 self.shutdown = 1
                 self.transferDone = 1
                 self.logger.debug("Exit tranfer thread")
