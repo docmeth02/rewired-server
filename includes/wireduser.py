@@ -102,72 +102,41 @@ class wiredUser():
         return 0
 
     def buildUserList(self):
-        userlist = str(self.id) + chr(28)
-        userlist += str(self.idle) + chr(28)
-        userlist += str(self.admin) + chr(28)
-        userlist += str(self.icon) + chr(28)
-        userlist += str(self.nick) + chr(28)
-        userlist += str(self.user) + chr(28)
-        userlist += str(self.ip) + chr(28)
-        userlist += str(self.host) + chr(28)
-        userlist += str(self.status) + chr(28)
-        userlist += str(self.image)
-        return userlist
+        userlist = [str(s) for s in [self.id, self.idle, self.admin, self.icon, self.nick,
+                                     self.user, self.ip, self.host, self.status, self.image]]
+        return str(chr(28)).join(userlist)
 
     def userInfo(self):
-        userinfo = str(self.id) + chr(28)
-        userinfo += str(self.idle) + chr(28)
-        userinfo += str(self.admin) + chr(28)
-        userinfo += str(self.icon) + chr(28)
-        userinfo += str(self.nick) + chr(28)
-        userinfo += str(self.user) + chr(28)
-        userinfo += str(self.ip) + chr(28)
-        userinfo += str(self.host) + chr(28)
-        userinfo += str(self.client) + chr(28)
-        userinfo += str(self.cipherName) + chr(28)
-        userinfo += str(self.cipherBits) + chr(28)
-        userinfo += str(wiredfunctions.wiredTime(self.loginTime)) + chr(28)
-        userinfo += str(wiredfunctions.wiredTime(self.lastActive)) + chr(28)
         ## add running transfer check here
         ul = ""
         dl = ""
-        transfers = self.ownTransfers()
-        for id, transfer in transfers.items():
+        for id, transfer in self.ownTransfers().items():
             if not transfer.active:
-                break  # this is only a queued transfer
+                continue  # this is only a queued transfer
             if transfer.type == "DOWN":
                 if dl:
-                    dl += chr(29)
-                dl += str(transfer.file) + chr(30) + str(transfer.bytesdone) + chr(30) + str(transfer.size) +\
-                    chr(30) + str(transfer.rate)
+                    dl += str(chr(29))
+                dl += str(chr(30)).join([str(s) for s in [transfer.file, transfer.bytesdone,
+                                                          transfer.size, transfer.rate]])
             if transfer.type == "UP":
                 if ul:
-                    ul += chr(29)
-                ul += str(transfer.file) + chr(30) + str(transfer.bytesdone) + chr(30) +\
-                    str(transfer.size) + chr(30) + str(transfer.rate)
+                    ul += str(chr(29))
+                ul += str(chr(30)).join([str(s) for s in [transfer.file, transfer.bytesdone,
+                                                          transfer.size, transfer.rate]])
 
-        if dl:
-            userinfo += dl + chr(28)
-        else:
-            userinfo += chr(28)
-        if ul:
-            userinfo += ul + chr(28)
-        else:
-            userinfo += chr(28)
-        userinfo += str(self.status) + chr(28) + str(self.image)
-        return userinfo
+        userinfo = [str(s) for s in [self.id, self.idle, self.admin, self.icon, self.nick, self.user,  self.ip,
+                                     self.host, self.client, self.cipherName, self.cipherBits,
+                                     wiredfunctions.wiredTime(self.loginTime),
+                                     wiredfunctions.wiredTime(self.lastActive),
+                                     dl, ul, self.status, self.image]]
+        return str(chr(28)).join(userinfo)
 
     def buildStatusChanged(self):
-        newstatus = str(self.parent.id) + chr(28)
-        newstatus += str(self.idle) + chr(28)
+        isadmin = self.admin
         if self.config['disableAdmins']:
-            newstatus += str(0) + chr(28)
-        else:
-            newstatus += str(self.admin) + chr(28)
-        newstatus += str(self.icon) + chr(28)
-        newstatus += str(self.nick) + chr(28)
-        newstatus += str(self.status)
-        return newstatus
+            isadmin = 0
+        return str(chr(28)).join([str(s) for s in [self.parent.id, self.idle, isadmin,
+                                                   self.icon, self.nick, self.status]])
 
     def ownTransfers(self):
         mytransfers = {}
@@ -219,31 +188,14 @@ class wiredPrivs():
         self.uploadLimit = 0
         self.changeTopic = 0
 
-    def buildUserList(self):
-        privmask = str(self.getUserInfo) + chr(28)
-        privmask += str(self.broadcast) + chr(28)
-        privmask += str(self.postNews) + chr(28)
-        privmask += str(self.clearNews) + chr(28)
-        privmask += str(self.download) + chr(28)
-        privmask += str(self.upload) + chr(28)
-        privmask += str(self.uploadAnywhere) + chr(28)
-        privmask += str(self.createFolders) + chr(28)
-        privmask += str(self.alterFiles) + chr(28)
-        privmask += str(self.deleteFiles) + chr(28)
-        privmask += str(self.viewDropboxes) + chr(28)
-        privmask += str(self.createAccounts) + chr(28)
-        privmask += str(self.editAccounts) + chr(28)
-        privmask += str(self.deleteAccounts) + chr(28)
-        privmask += str(self.elevatePrivileges) + chr(28)
-        privmask += str(self.kickUsers) + chr(28)
-        privmask += str(self.banUsers) + chr(28)
-        privmask += str(self.cannotBeKicked) + chr(28)
-        privmask += str(self.downloadSpeed) + chr(28)
-        privmask += str(self.uploadSpeed) + chr(28)
-        privmask += str(self.downloadLimit) + chr(28)
-        privmask += str(self.uploadLimit) + chr(28)
-        privmask += str(self.changeTopic)
-        return privmask
+    def privsToString(self):
+        privlist = [str(s) for s in [self.getUserInfo, self.broadcast, self.postNews, self.clearNews, self.download,
+                                     self.upload, self.uploadAnywhere, self.createFolders, self.alterFiles,
+                                     self.deleteFiles, self.viewDropboxes, self.createAccounts, self.editAccounts,
+                                     self.deleteAccounts, self.elevatePrivileges, self.kickUsers, self.banUsers,
+                                     self.cannotBeKicked, self.downloadSpeed, self.uploadSpeed, self.downloadLimit,
+                                     self.uploadLimit, self.changeTopic]]
+        return str(chr(28)).join(privlist)
 
     def stringToPrivs(self, privstring):
         privlist = str(privstring).split(chr(28))

@@ -31,7 +31,7 @@ class commandHandler():
         self.parent.user.nick = str(parameters[0])
         if self.parent.user.loginDone:
             data = self.parent.user.buildStatusChanged()
-            self.notifyAll("304 " + data + chr(4))
+            self.notifyAll(self.buildResponse(304, [data]))
             self.wiredlog.log_event('NICK', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick})
         return 1
 
@@ -39,7 +39,7 @@ class commandHandler():
         self.parent.user.icon = str(parameters[0])
         self.parent.user.image = str(parameters[1])
         if self.parent.user.loginDone:
-            data = "340 " + str(self.parent.id) + chr(28) + str(self.parent.user.image) + chr(4)
+            data = self.buildResponse(340, [self.parent.id, self.parent.user.image])
             self.notifyAll(data)
         return 1
 
@@ -47,7 +47,7 @@ class commandHandler():
         self.parent.user.status = str(parameters[0])
         if self.parent.user.loginDone:
             data = self.parent.user.buildStatusChanged()
-            self.notifyAll("304 " + data + chr(4))
+            self.notifyAll(self.buildResponse(304, [data]))
             self.wiredlog.log_event('STATUS', {'USER': self.parent.user.user, 'STATUS': self.parent.user.status})
         return 1
 
@@ -61,9 +61,7 @@ class commandHandler():
         return 1
 
     def PRIVILEGES(self, parameters):
-        privs = self.parent.user.privs.buildUserList()
-        response = '602 ' + privs + chr(4)
-        self.parent.sendData(response)
+        self.parent.sendData(self.buildResponse(602, [self.parent.user.privs.privsToString()]))
         return 1
 
     def PASS(self, parameters):
@@ -95,7 +93,7 @@ class commandHandler():
         else:
             self.parent.user.mapPrivs(user[4])
         self.logger.info("Login for user %s successful.", self.parent.user.user)
-        self.parent.sendData('201 ' + str(self.parent.user.id) + chr(4))  # send login successful
+        self.parent.sendData(self.buildResponse(201, [self.parent.user.id]))  # send login successful
         self.parent.sendData(self.getTopic(1))  # send topic for public chat (if any)
         self.parent.loginDone()  # add this client to the logged in user list
         self.parent.user.loginDone = 1  # login is now complete
@@ -127,15 +125,14 @@ class commandHandler():
                 host = aclient.user.host
                 user = aclient.user.user
             try:
-                response = "310 " + str(chatid) + chr(28) + str(aclient.user.id) + chr(28) + str(aclient.user.idle) +\
-                    chr(28) + str(aclient.user.admin) + chr(28) + str(aclient.user.icon) + chr(28) +\
-                    str(aclient.user.nick) + chr(28) + str(user) + chr(28) + str(ip) + chr(28) +\
-                    str(host) + chr(28) + str(aclient.user.status) + chr(28) + str(aclient.user.image) + chr(4)
-                self.parent.sendData(response)
+                data = self.buildResponse(310, [chatid, aclient.user.id, aclient.user.idle, aclient.user.admin,
+                                                aclient.user.icon, aclient.user.nick, user, ip, host,
+                                                aclient.user.status, aclient.user.image])
+                self.parent.sendData(data)
             except Exception as e:
                 self.logger.debug("WHO Error: %s %s", str(e), format_exc())
                 continue
-        self.parent.sendData('311 ' + str(chatid) + chr(4))  # send userlist done
+        self.parent.sendData(self.buildResponse(311, [chatid]))  # send userlist done
         return 1
 
     def INFO(self, parameters):
@@ -148,7 +145,7 @@ class commandHandler():
         except KeyError:
             self.logger.error("Invalid INFO userid %s requested", parameters[0])
             return 0
-        self.parent.sendData('308 ' + str(userinfo) + chr(4))
+        self.parent.sendData(self.buildResponse(308, [userinfo]))
         self.wiredlog.log_event('INFO', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick,
                                          'TARGET': clients[int(parameters[0])].user.user})
         return 1
@@ -161,8 +158,7 @@ class commandHandler():
         chatid = int(parameters[0])
         chat = wiredfunctions.tsplit(parameters[1], '\n')
         for achat in chat:
-            data = '300 ' + str(chatid) + chr(28) + str(self.parent.user.id) + chr(28) + str(achat) + chr(4)
-            self.notifyChat(data, chatid)
+            self.notifyChat(self.buildResponse(300, [chatid, self.parent.user.id, achat]), chatid)
         return 1
 
     def ME(self, parameters):
@@ -170,12 +166,11 @@ class commandHandler():
             self.logger.error('ME: invalid parameters')
             return 0
         chatid = parameters[0]
-        data = '301 ' + str(chatid) + chr(28) + str(self.parent.user.id) + chr(28) + str(parameters[1]) + chr(4)
-        self.notifyChat(data, chatid)
+        self.notifyChat(self.buildResponse(301, [chatid, self.parent.user.id, parameters[1]]), chatid)
         return 1
 
     def BANNER(self, parameters):
-        self.parent.sendData('203 ' + str(self.config['banner']) + chr(4))
+        self.parent.sendData(self.buildResponse(203, [self.config['banner']]))
         return 1
 
     def POST(self, parameters):
@@ -184,9 +179,8 @@ class commandHandler():
             return 0
         self.parent.postNews(parameters[0])
         date = wiredfunctions.wiredTime(time.time())
-        data = "322 " + str(self.parent.user.nick) + chr(28) + str(date) + chr(28) + str(parameters[0]) + chr(4)
+        self.notifyAll(self.buildResponse(322, [self.parent.user.nick, date, parameters[0]]))
         self.logger.info("%s posted a news item", self.parent.user.nick)
-        self.notifyAll(data)
         self.wiredlog.log_event('POST', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick})
         return 1
 
@@ -195,8 +189,8 @@ class commandHandler():
         if news:
             for anews in news:
                 date = wiredfunctions.wiredTime(float(anews[1]))
-                self.parent.sendData("320 " + str(anews[0]) + chr(28) + str(date) + chr(28) + str(anews[2]) + chr(4))
-        self.parent.sendData("321 Done" + chr(4))
+                self.parent.sendData(self.buildResponse(320, [anews[0], date, anews[2]]))
+        self.parent.sendData(self.buildResponse(321, ['Done']))
         return 1
 
     def CLEARNEWS(self, parameters):
@@ -204,8 +198,8 @@ class commandHandler():
             self.reject(516)
             return 0
         self.parent.clearNews()
+        self.parent.sendData(self.buildResponse(321, ['Done']))
         self.logger.info("%s cleared the news", self.parent.user.user)
-        self.parent.sendData("321 Done" + chr(4))
         self.wiredlog.log_event('CLEARNEWS', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick})
         return 1
 
@@ -215,7 +209,7 @@ class commandHandler():
             if aclient.user.id is None:
                 continue
             if int(aclient.user.id) == int(parameters[0]):
-                aclient.sendData('305 ' + str(self.parent.user.id) + chr(28) + str(parameters[1]) + chr(4))
+                aclient.sendData(self.buildResponse(305, [self.parent.user.id, parameters[1]]))
                 return 1
             # raise user not found error
         return 0
@@ -225,7 +219,7 @@ class commandHandler():
             self.reject(516)
             return 0
         data = parameters[0]
-        self.notifyAll('309 ' + str(self.parent.id) + chr(28) + str(data) + chr(4))
+        self.notifyAll(self.buildResponse(309, [self.parent.id, data]))
         self.wiredlog.log_event('BROADCAST', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick})
 
     def TOPIC(self, parameters):
@@ -246,7 +240,8 @@ class commandHandler():
             self.logger.error("Invalid parameters in TOPIC")
         self.parent.setTopic(newtopic, chatid)
         data = self.getTopic(chatid)
-        self.notifyChat(data, chatid)
+        if data:
+            self.notifyChat(data, chatid)
         if chatid == 1:
             self.wiredlog.log_event('TOPIC', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick,
                                               'TOPIC': str(parameters[1])})
@@ -265,18 +260,16 @@ class commandHandler():
         except KeyError:
             self.logger.error("Invalid parameters in getTopic")
             return 0
-        data = '341 ' + str(chat) + chr(28) + str(nick) + chr(28) + str(login) + chr(28) +\
-        str(ip) + chr(28) + str(topictime) + chr(28) + str(topic) + chr(4)
-        return data
+        return self.buildResponse(341, [chat, nick, login, ip, topictime, topic])
 
     def PING(self, parameters):
-        self.parent.sendData('202 PONG' + chr(4))
+        self.parent.sendData(self.buildResponse(202, ['PONG']))
         self.parent.lastPing = time.time()
         return 1
 
     def PRIVCHAT(self, parameters):
         chatID = self.parent.getGlobalPrivateChatID()  # get a new private chat id
-        self.parent.sendData("330 " + str(chatID) + chr(4))
+        self.parent.sendData(self.buildResponse(330, [chatID]))
         self.parent.user.activeChats[int(chatID)] = 1
         return 1
 
@@ -286,13 +279,12 @@ class commandHandler():
         clients = self.parent.getUserList()
         for aid, aclient in clients.items():
             if aclient.id == int(parameters[0]):
-                aclient.sendData('331 ' + str(parameters[1]) + chr(28) + str(int(self.parent.id)) + chr(4))
+                aclient.sendData(self.buildResponse(331, [parameters[1], self.parent.id]))
         return 1
 
     def DECLINE(self, parameters):
         chatid = int(parameters[0])
-        data = '332 ' + str(chatid) + chr(28) + str(self.parent.id) + chr(4)
-        self.notifyChat(data, chatid)
+        self.notifyChat(self.buildResponse(332, [chatid, self.parent.id]), chatid)
 
     def JOIN(self, parameters):
         self.parent.user.activeChats[int(parameters[0])] = 1
@@ -305,7 +297,7 @@ class commandHandler():
         self.parent.user.activeChats[int(chat)] = time.time()  # time user joined this chat
         for aid, aclient in clients.items():
             if aclient.id != self.parent.id and int(chat) in aclient.user.activeChats:
-                aclient.sendData('302 ' + str(chat) + chr(28) + userlist + chr(4))
+                aclient.sendData(self.buildResponse(302, [chat, userlist]))
         return 1
 
     def LEAVE(self, parameters):
@@ -316,8 +308,7 @@ class commandHandler():
         if not self.parent.user.loginDone or self.parent.user.id is None:
             return 0  # don't send leave for clients with failed logins
         self.parent.user.activeChats.pop(int(chat), 0)
-        data = '303 ' + str(chat) + chr(28) + str(self.parent.user.id) + chr(4)
-        self.notifyChat(data, chat)
+        self.notifyChat(self.buildResponse(303, [chat, self.parent.user.id]), chat)
         self.parent.releaseTopic(chat)  # release chat topic
         return 1
 
@@ -331,8 +322,7 @@ class commandHandler():
                 if aclient.user.checkPrivs("cannotBeKicked"):
                     self.reject(515)
                     return 0
-                self.notifyAll("306 " + str(parameters[0]) + chr(28) + str(self.parent.id) +\
-                chr(28) + str(parameters[1]) + chr(4))
+                self.notifyAll(self.buildResponse(306, [parameters[0], self.parent.id, parameters[1]]))
                 with aclient.lock:
                     try:
                         aclient.shutdown = 1
@@ -369,9 +359,9 @@ class commandHandler():
                 if aclient.user.checkPrivs("cannotBeKicked"):
                     self.reject(515)
                     return 0
-                self.parent.banUser(aclient.user.user, aclient.user.nick, aclient.user.ip,\
+                self.parent.banUser(aclient.user.user, aclient.user.nick, aclient.user.ip,
                                     float(time.time() + (int(duration) * 60)))
-                self.notifyAll('307 ' + str(aclient.id) + chr(28) + str(self.parent.id) + chr(28) + str(msg) + chr(4))
+                self.notifyAll(self.buildResponse(307, [aclient.id, self.parent.id, msg]))
                 with aclient.lock:
                     try:
                         aclient.shutdown = 1
@@ -394,7 +384,7 @@ class commandHandler():
         privs.listToPrivs(parameters[3:])
         privstring = privs.buildUserList()
         if not self.parent.addUser([username, password, group, 1, privstring]):
-            self.parent.sendData("514 Account Exists" + chr(4))
+            self.parent.sendData(self.buildResponse(514, ['Account Exists']))
             self.logger.info("%s tried to add already existing user %s", self.parent.user.user, username)
             return 0
         self.logger.info("%s added user %s", self.parent.user.user, username)
@@ -412,7 +402,7 @@ class commandHandler():
         privs.listToPrivs(parameters[1:])
         privstring = privs.buildUserList()
         if not self.parent.addUser([username, password, group, 0, privstring]):
-            self.parent.sendData("514 Account Exists" + chr(4))
+            self.parent.sendData(self.buildResponse(514, ['Account Exists']))
             self.logger.info("%s tried to add already existing group %s", self.parent.user.user, group)
             return 0
         self.logger.info("%s added group %s", self.parent.user.user, group)
@@ -425,8 +415,8 @@ class commandHandler():
             return 0
         users = self.parent.getUsers()
         for auser in users:  # start userlist
-            self.parent.sendData("610 " + str(auser[0]) + chr(4))
-        self.parent.sendData('611 Done' + chr(4))
+            self.parent.sendData(self.buildResponse(610, [auser[0]]))
+        self.parent.sendData(self.buildResponse(611, ['Done']))
         return 1
 
     def GROUPS(self, parameters):
@@ -435,8 +425,8 @@ class commandHandler():
             return 0
         groups = self.parent.getGroups()
         for agroup in groups:  # start userlist
-            self.parent.sendData("620 " + str(agroup[0]) + chr(4))
-        self.parent.sendData('621 Done' + chr(4))
+            self.parent.sendData(self.buildResponse(620, [agroup[0]]))
+        self.parent.sendData(self.buildResponse(621, ['Done']))
         return 1
 
     def READUSER(self, parameters):
@@ -446,8 +436,7 @@ class commandHandler():
         users = self.parent.getUsers()
         for auser in users:
             if str(auser[0]) == str(parameters[0]):
-                self.parent.sendData("600 " + str(auser[0]) + chr(28) + str(auser[1]) + chr(28) +\
-                                     str(auser[2]) + chr(28) + str(auser[4]) + chr(4))
+                self.parent.sendData(self.buildResponse(600, [auser[0], auser[1], auser[2], auser[4]]))
                 return 1
         return 0
 
@@ -458,7 +447,7 @@ class commandHandler():
         groups = self.parent.getGroups()
         for agroup in groups:
             if str(agroup[0]) == str(parameters[0]):
-                self.parent.sendData("601 " + str(agroup[0]) + chr(28) + str(agroup[4]) + chr(4))
+                self.parent.sendData(self.buildResponse(601, [agroup[0], agroup[4]]))
                 return 1
         return 0
 
@@ -491,7 +480,7 @@ class commandHandler():
             return 0
         privs = wireduser.wiredPrivs(self.parent)
         privs.listToPrivs(parameters[3:])
-        privstring = privs.buildUserList()
+        privstring = privs.privsToString()
         if not self.parent.editUser([parameters[0], parameters[1], parameters[2], privstring]):
             self.logger.error("server failed to edit account %s", parameters[0])
             #send error
@@ -539,11 +528,10 @@ class commandHandler():
             return 0
         if filelist['type'] == 'dir':
             ftype = files.getFolderType(parameters[0])
-        response = "402 " + str(filelist['name']) + chr(28) + str(ftype) + chr(28) + str(filelist['size']) +\
-        chr(28) + wiredfunctions.wiredTime(filelist['created']) + chr(28) +\
-        wiredfunctions.wiredTime(filelist['modified']) + chr(28) + str(filelist['hash']) +\
-        chr(28) + str(comment) + chr(4)
-        self.parent.sendData(response)
+        self.parent.sendData(self.buildResponse(402, [filelist['name'], ftype, filelist['size'],
+                                                      wiredfunctions.wiredTime(filelist['created']),
+                                                      wiredfunctions.wiredTime(filelist['modified']),
+                                                      filelist['hash'], comment]))
         self.wiredlog.log_event('STAT', {'USER': self.parent.user.user, 'NAME': parameters[0]})
         return 1
 
@@ -633,8 +621,7 @@ class commandHandler():
             return 0
         self.parent.queueTransfer(transfer)
         # add queued check here
-        response = "400 " + str(transfer.file) + chr(28) + str(transfer.offset) + chr(28) + str(transfer.id) + chr(4)
-        self.parent.sendData(response)
+        self.parent.sendData(self.buildResponse(400, [transfer.file, transfer.offset, transfer.id]))
         self.logger.info("qeued transfer of %s for user %s (id: %s)", transfer.file, self.parent.user.user, transfer.id)
         return 1
 
@@ -655,19 +642,18 @@ class commandHandler():
         result = precheck.uploadCheck(transfer.file, transfer.checksum)
         if result == 521:   # file exists
             self.logger.error("%s tried to upload alredy existing file %s", self.parent.user.user, parameters[0])
-            self.parent.sendData("521 File or Directory Exists" + chr(4))
+            self.reject(521)
             return 0
         if result == 522:   # file exists
             self.logger.info("file checksum mismatch in %s from user %s", transfer.file, self.parent.user.user)
-            self.parent.sendData("522 Checksum Mismatch" + chr(4))
+            self.reject(522)
             return 0
         transfer.offset = result
         transfer.id = transfer.genID()
         transfer.size = int(parameters[1])
         transfer.type = "UP"
         self.parent.queueTransfer(transfer)
-        response = "400 " + str(transfer.file) + chr(28) + str(transfer.offset) + chr(28) + str(transfer.id) + chr(4)
-        self.parent.sendData(response)
+        self.parent.sendData(self.buildResponse(400, [transfer.file, transfer.offset, transfer.id]))
         return 1
 
     def SEARCH(self, parameters):
@@ -689,10 +675,10 @@ class commandHandler():
                 else:
                     type = 0
                     size = aresult[2]
-                data = "420 " + str(aresult[0]) + chr(28) + str(type) + chr(28) + str(size) + chr(28) +\
-                wiredfunctions.wiredTime(aresult[3]) + chr(28) + wiredfunctions.wiredTime(aresult[4]) + chr(4)
-                self.parent.sendData(data)
-        self.parent.sendData("421 Done" + chr(4))
+                self.parent.sendData(self.buildResponse(420, [aresult[0], type, size,
+                                                              wiredfunctions.wiredTime(aresult[3]),
+                                                              wiredfunctions.wiredTime(aresult[4])]))
+        self.parent.sendData(self.buildResponse(421, ['Done']))
         self.wiredlog.log_event('SEARCH', {'USER': self.parent.user.user, 'NICK': self.parent.user.nick,
                                            'SEARCH': parameters[0]})
         return 1
@@ -701,12 +687,13 @@ class commandHandler():
         self.parent.protoVersion = proto
         platform = wiredfunctions.getPlatform()
         serverstart = wiredfunctions.wiredTime(str(self.parent.config['serverStarted']))
-        msg = "200 " + str(self.parent.config['appName']) + "/" + str(self.parent.config['appVersion']) +\
-        " (" + platform['OS'] + "; " + str(platform['OSVersion']) + "; " + platform['ARCH'] + " Python " +\
-        platform['PYTHON'] + ") (" + platform['TLSLib'] + ')' + chr(28) + str(self.parent.protoVersion) + chr(28) +\
-        (self.parent.config['serverName']) + chr(28) + str(self.parent.config['serverDesc']) + chr(28) +\
-        serverstart + chr(28) + str(self.parent.serverFiles) + chr(28) + str(self.parent.serverSize) + chr(4)
-        return msg
+        string = '%s/%s (%s; %s; %s Python %s) (%s)' % (self.parent.config['appName'], self.parent.config['appVersion'],
+                                                        platform['OS'], platform['OSVersion'], platform['ARCH'],
+                                                        platform['PYTHON'], platform['TLSLib'])
+
+        return self.buildResponse(200, [string, self.parent.protoVersion, self.parent.config['serverName'],
+                                        self.parent.config['serverDesc'], serverstart, self.parent.serverFiles,
+                                        self.parent.serverSize])
 
     ## Data handling ##
     def notifyAll(self, data):
@@ -728,23 +715,27 @@ class commandHandler():
 
     def reject(self, reason):
         if int(reason) == 500:
-            response = "500 Command Failed"
+            response = self.buildResponse(500, ['Command Failed'])
         if int(reason) == 501:
-            response = "501 Command Not Recognized"
+            response = self.buildResponse(501, ['Command Not Recognized'])
         if int(reason) == 502:
-            response = "502 Command Not Implemented"
+            response = self.buildResponse(502, ['Command Not Implemented'])
         if int(reason) == 510:
-            response = "510 Login Failed"
+            response = self.buildResponse(510, ['Login Failed'])
         if int(reason) == 511:
-            response = "511 Banned"
+            response = self.buildResponse(511, ['Banned'])
         if int(reason) == 515:
-            response = "515 Cannot Be Disconnected"
+            response = self.buildResponse(515, ['Cannot Be Disconnected'])
         if int(reason) == 516:
-            response = "516 Permission Denied"
+            response = self.buildResponse(516, ['Permission Denied'])
         if int(reason) == 520:
-            response = "520 File or Directory Not Found"
+            response = self.buildResponse(520, ['File or Directory Not Found'])
+        if int(reason) == 521:
+            response = self.buildResponse(521, ['File or Directory Exists'])
+        if int(reason) == 522:
+            response = self.buildResponse(522, ['Checksum Mismatch'])
 
-        self.parent.sendData(response + chr(4))
+        self.parent.sendData(response)
         return 1
 
     def gotdata(self, data):
@@ -780,7 +771,16 @@ class commandHandler():
                 self.parent.user.lastActive = time.time()
                 if self.parent.user.checkWakeNotify():
                     data = self.parent.user.buildStatusChanged()
-                    data = "304 " + data + chr(4)
-                    self.notifyAll(data)
+                    self.notifyAll(self.buildResponse(304, [data]))
                     self.parent.user.knownIdle = 0
         return 1
+
+    @staticmethod
+    def buildResponse(restype, payload=[]):
+        response = "%s " % restype
+        for i in range(0, len(payload)):
+            char = chr(28)
+            if i == (len(payload)-1):
+                char = chr(4)
+            response += "%s%s" % (payload[i], char)
+        return response

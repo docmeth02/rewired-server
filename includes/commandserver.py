@@ -211,7 +211,7 @@ class commandServer(threading.Thread):
                     aclient.user.mapPrivs(privs)
                 aclient.handler.PRIVILEGES([])
                 # notify online clients that account may have changed
-                aclient.handler.notifyAll("304 " + aclient.user.buildStatusChanged() + chr(4))
+                aclient.handler.notifyAll(aclient.handler.buildResponse(304, [aclient.user.buildStatusChanged()]))
                 aclient.user.updateTransfers()
         return 1
 
@@ -223,7 +223,7 @@ class commandServer(threading.Thread):
                     aclient.user.mapPrivs(privs)
                 aclient.handler.PRIVILEGES([])
                 # same as above
-                aclient.handler.notifyAll("304 " + aclient.user.buildStatusChanged() + chr(4))
+                aclient.handler.notifyAll(aclient.handler.buildResponse(304, [aclient.user.buildStatusChanged()]))
                 aclient.user.updateTransfers()
         return 1
 
