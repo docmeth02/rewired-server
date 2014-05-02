@@ -333,13 +333,12 @@ class commandHandler():
                     return 0
                 self.notifyAll("306 " + str(parameters[0]) + chr(28) + str(self.parent.id) +\
                 chr(28) + str(parameters[1]) + chr(4))
-                aclient.lock.acquire()
-                try:
-                    aclient.shutdown = 1
-                    aclient.socket.shutdown(socket.SHUT_RDWR)
-                except:
-                    self.logger.error("Failed to terminate thread for user %s", aclient.user.nick)
-                aclient.lock.release()
+                with aclient.lock:
+                    try:
+                        aclient.shutdown = 1
+                        aclient.socket.shutdown(socket.SHUT_RDWR)
+                    except:
+                        self.logger.error("Failed to terminate thread for user %s", aclient.user.nick)
 
                 self.logger.info("%s was kicked by %s", aclient.user.nick, self.parent.user.user)
                 self.wiredlog.log_event('KICK', {'USER': self.parent.user.user, 'VICTIM': aclient.user.user})
@@ -373,14 +372,12 @@ class commandHandler():
                 self.parent.banUser(aclient.user.user, aclient.user.nick, aclient.user.ip,\
                                     float(time.time() + (int(duration) * 60)))
                 self.notifyAll('307 ' + str(aclient.id) + chr(28) + str(self.parent.id) + chr(28) + str(msg) + chr(4))
-
-                aclient.lock.acquire()
-                try:
-                    aclient.shutdown = 1
-                    aclient.socket.shutdown(socket.SHUT_RDWR)
-                except:
-                    pass
-                aclient.lock.release()
+                with aclient.lock:
+                    try:
+                        aclient.shutdown = 1
+                        aclient.socket.shutdown(socket.SHUT_RDWR)
+                    except:
+                        pass
                 self.wiredlog.log_event('BAN', {'USER': self.parent.user.user, 'VICTIM': aclient.user.user,
                                                 'DURATION': int(duration)})
         return 1

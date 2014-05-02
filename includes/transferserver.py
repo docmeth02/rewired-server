@@ -80,9 +80,9 @@ class transferServer(threading.Thread):
                         self.wiredlog.log_event('UPLOAD', {'RESULT': 'COMPLETE', 'USER': self.client.user.user,
                                                            'NICK': self.client.user.nick, 'FILE': transfer.file,
                                                            'SIZE': transfer.bytesdone})
-                self.lock.acquire(True)
-                self.parent.transferqueue.pop(transfer.id, None)
-                self.lock.release()
+                with self.lock:
+                    self.parent.transferqueue.pop(transfer.id, None)
+
                 self.shutdown = 1
                 self.transferDone = 1
                 self.logger.debug("Exit tranfer thread")

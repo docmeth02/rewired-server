@@ -86,15 +86,14 @@ class wiredTracker(threading.Thread):
         self.logger.debug("Tracker %s stopped", self.tracker)
 
     def checkPrivs(self):
-        self.parent.lock.acquire()
-        users = self.db.loadUsers()
-        for auser in users:
-            if auser[0] == "guest":
-                guest = wireduser.wiredPrivs(self)
-                guest.stringToPrivs(auser[4])
-                self.download = int(guest.download)
-                self.guest = 1
-        self.parent.lock.release()
+        with self.parent.lock:
+            users = self.db.loadUsers()
+            for auser in users:
+                if auser[0] == "guest":
+                    guest = wireduser.wiredPrivs(self)
+                    guest.stringToPrivs(auser[4])
+                    self.download = int(guest.download)
+                    self.guest = 1
         return 1
 
     def updateInfo(self):

@@ -15,18 +15,16 @@ class wiredNews():
         for anews in news:
             anews = list(anews)
             anews[2] = anews[2].replace(chr(24), '\n')
-            self.lock.acquire()
-            self.news.append(anews)
-            self.lock.release()
+            with self.lock:
+                self.news.append(anews)
         return 1
 
     def saveNews(self, nick, date, news):
         news = news.replace('\n', chr(24))
         news = [self._decode(nick), date, self._decode(news)]
         self.db.saveNews(news)
-        self.lock.acquire()
-        self.news.append(news)
-        self.lock.release()
+        with self.lock:
+            self.news.append(news)
         self.reloadNews()
         return 1
 
@@ -36,9 +34,8 @@ class wiredNews():
         return 1
 
     def reloadNews(self):
-        self.lock.acquire()
-        self.news = []
-        self.lock.release()
+        with self.lock:
+            self.news = []
         self.loadNews()
         return 1
 

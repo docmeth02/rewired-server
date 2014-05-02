@@ -129,18 +129,16 @@ class reWiredServer():
             self.wiredlog.log_event('SERVERSTOP', {})
             self.wiredlog.stop()
         for key, aclient in self.clients.items():
-            aclient.lock.acquire()
-            try:
-                aclient.shutdown = 1
-                aclient.socket.shutdown(socket.SHUT_RDWR)
-            except:
-                pass
-            aclient .lock.release()
+            with aclient.lock:
+                try:
+                    aclient.shutdown = 1
+                    aclient.socket.shutdown(socket.SHUT_RDWR)
+                except:
+                    pass
         for key, atransfer in self.transferqueue.items():
-            atransfer.parent.lock.acquire()
-            atransfer.shutdown = 1
-            atransfer.parent.socket.shutdown(socket.SHUT_RDWR)
-            atransfer.parent.lock.release()
+            with atransfer.parent.lock:
+                atransfer.shutdown = 1
+                atransfer.parent.socket.shutdown(socket.SHUT_RDWR)
         if self.indexer:
             self.indexer.shutdown = 1
         if self.tracker:
@@ -173,36 +171,31 @@ class reWiredServer():
         if self.indexer.sizeChanged:    # the indexer messaged that the server info changed
             self.logger.debug("Server size changed: Sending new server info to all cients")
             for aid, aclient in self.clients.items():  # now update all clients
-                aclient.lock.acquire()
-                aclient.serverSize = self.indexer.size
-                aclient.serverFiles = self.indexer.files
-                aclient.lock.release()
+                with aclient.lock:
+                    aclient.serverSize = self.indexer.size
+                    aclient.serverFiles = self.indexer.files
                 aclient.updateServerInfo()
-            self.indexer.lock.acquire()
-            self.indexer.sizeChanged = 0
-            self.indexer.lock.release()
+            with self.indexer.lock:
+                self.indexer.sizeChanged = 0
 
         # check for zombies and idle users
         for aid, aclient in self.clients.items():
             if aclient.user.checkIdleNotify():
                 aclient.handler.notifyAll("304 " + str(aclient.user.buildStatusChanged()) + chr(4))
-                self.lock.acquire()
-                aclient.user.knownIdle = 1
-                self.lock.release()
+                with self.lock:
+                    aclient.user.knownIdle = 1
 
             if not aclient.is_alive() or aclient.lastPing <= (time() - self.config['pingTimeout']):
                 self.logger.error("Found dead thread for userid %s Lastping %s seconds ago",
                                   aid, (time() - aclient.lastPing))
                 try:
                     aclient.logOut()
-                    self.lock.acquire()
-                    aclient.shutdown = 1
-                    aclient.socket.shutdown(socket.SHUT_RDWR)
-                    self.clients.pop(aclient.id, 0)
-                    self.lock.release()
+                    with self.lock:
+                        aclient.shutdown = 1
+                        aclient.socket.shutdown(socket.SHUT_RDWR)
+                        self.clients.pop(aclient.id, 0)
                 except socket.error:
                     self.clients.pop(aclient.id, 0)
-                    self.lock.release()
                     self.logger.error("Client %s: socket was already dead", aid)
         return 1
 
