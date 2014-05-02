@@ -77,7 +77,7 @@ class wiredlog():
             data.pop('USER', 0)
         except:
             pass
-        event['DATA'] = dumps(data)
+        event['DATA'] = dumps(str(data).encode('UTF-8', errors='ignore'))
         with self.lock:
             self.buffer.append(event)
         if self.debug:
