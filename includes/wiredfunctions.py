@@ -159,7 +159,8 @@ def loadConfig(confFile):
     # Level of client isolation: off/moderate/paranoid
     securityModel = string(default="moderate")
     # loglevels: debug, info, warning, error, none
-    logLevel = string(default=debug)"""
+    logLevel = string(default=debug)
+    logdbFile = string(default="rewiredlog.db")"""
     spec = default.split("\n")
     config = ConfigObj(confFile, list_values=True, stringify=True, configspec=spec)
     validator = Validator()

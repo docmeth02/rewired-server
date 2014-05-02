@@ -23,6 +23,7 @@ class commandServer(threading.Thread):
         self.parent = parent
         self.lock = threading.Lock()
         self.config = self.parent.config
+        self.wiredlog = self.parent.wiredlog
         self.connection = parentsocket
         self.socket = wrap_socket(self.connection, server_side=True, certfile=str(self.config['cert']), keyfile=str(
             self.config['cert']), ssl_version=PROTOCOL_TLSv1)
@@ -131,6 +132,7 @@ class commandServer(threading.Thread):
             pass
         self.parent.lock.release()
         self.id = None
+        self.parent.wiredlog.log_event('LOGOUT', {'USER': self.user.user, 'NICK': self.user.nick})
         self.lock.release()
         return 1
 

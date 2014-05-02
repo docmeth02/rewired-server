@@ -5,6 +5,7 @@ import wiredtransfer
 import wireddb
 import wiredindex
 import wiredtracker
+import wiredlogging
 import signal
 import socket
 import select
@@ -50,10 +51,13 @@ class reWiredServer():
         self.logger.info("Starting re:wired %s on %s - %s (%s) Python %s" %
                          (self.config['appVersion'], platform['OS'],
                          platform['OSVersion'], platform['ARCH'], platform['PYTHON']))
+
         wiredfunctions.platformHints(self.logger)
         self.pid = wiredfunctions.initPID(self.config)
         self.logger.info("Server pid: %s", self.pid)
         self.db = wireddb.wiredDB(self.config, self.logger)
+        self.wiredlog = wiredlogging.wiredlog(self)
+        self.wiredlog.log_event('SERVERSTART', {})
         self.news = wirednews.wiredNews(self.db)
         self.news.loadNews()
         self.users = wireduser.wiredUserDB(self.db, self.logger)
@@ -121,6 +125,9 @@ class reWiredServer():
         if self.threadDebugtimer:
             self.threadDebugtimer.cancel()
             self.threadDebugtimer.join()
+        if self.wiredlog:
+            self.wiredlog.log_event('SERVERSTOP', {})
+            self.wiredlog.stop()
         for key, aclient in self.clients.items():
             aclient.lock.acquire()
             try:
