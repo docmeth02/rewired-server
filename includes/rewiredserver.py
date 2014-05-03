@@ -145,9 +145,15 @@ class reWiredServer():
             for atracker in self.tracker:
                 atracker.keepalive = 0
         if hasattr(self, 'commandSock'):
-            self.commandSock.close()
+            try:
+                self.commandSock.close()
+            except socket.error:
+                pass
         if hasattr(self, 'transferSock'):
-            self.transferSock.close()
+            try:
+                self.transferSock.close()
+            except socket.error:
+                pass
         wiredfunctions.removePID(self.config)
         try:
             for ahandler in self.logger.handlers:
