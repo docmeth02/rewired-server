@@ -6,6 +6,7 @@ except:
 from time import time
 import os
 from threading import RLock
+from time import sleep
 
 
 class wiredDB():
@@ -19,10 +20,23 @@ class wiredDB():
 
     ## DB HANDLING ##
     def openDB(self):
-        self.lock.acquire()
-        self.conn = sqlite3.connect(self.config["dbFile"], check_same_thread=True)
-        self.pointer = self.conn.cursor()
-        self.conn.text_factory = str
+        wait = 0
+        while True:
+            if self.lock.acquire(False):
+                break
+            sleep(.05)
+            wait += 0.05
+            if wait >= 1:
+                self.logger.error("openDB: failed to acquire lock in time.")
+                return 0
+        try:
+            self.conn = sqlite3.connect(self.config["dbFile"], check_same_thread=True)
+            self.pointer = self.conn.cursor()
+            self.conn.text_factory = str
+        except sqlite3.Error as e:
+            self.lock.release()
+            self.logger.error("openDB: %s" % e)
+            return 0
         self.dbIsOpen = 1
         return 1
 
@@ -47,7 +61,6 @@ class wiredDB():
 
     def updateElement(self, data, type):
         if not self.openDB():
-            self.lock.release()
             return 0
         sql = "UPDATE wiredUsers SET password='" + str(data[1]) + "', groupname='" + str(data[2]) + "', privs='" +\
             str(data[3]) + "' WHERE name='" + str(data[0]) + "' AND type='" + str(type) + "';"
@@ -61,7 +74,6 @@ class wiredDB():
 
     def deleteElement(self, username, type):
         if not self.openDB():
-            self.lock.release()
             return 0
         sql = "DELETE FROM wiredUsers WHERE name='" + str(username) + "' AND type='" + str(type) + "';"
         result = self.pointer.execute(sql)
@@ -74,7 +86,6 @@ class wiredDB():
 
     def loadData(self, type):
         if not self.openDB():
-            self.lock.release()
             return 0
         # since there is no check if a table exists try to create basic userdb everytime we open the db
         self.pointer.execute('CREATE TABLE IF NOT EXISTS wiredUsers (name TEXT UNIQUE, password TEXT, groupname \
@@ -105,7 +116,6 @@ class wiredDB():
 
     def saveUser(self, user):
         if not self.openDB():
-            self.lock.release()
             return 0
         self.pointer.execute("SELECT * FROM wiredUsers WHERE name = '" + str(user[0]) +
                              "' AND type ='" + str(user[3]) + "';")
@@ -123,7 +133,6 @@ class wiredDB():
     ### News ###
     def loadNews(self):
         if not self.openDB():
-            self.lock.release()
             return 0
         sql = 'create table if not exists wiredNews (nick TEXT, date FLOAT, news TEXT)'
         self.pointer.execute(sql)
@@ -143,7 +152,6 @@ class wiredDB():
 
     def saveNews(self, news):
         if not self.openDB():
-            self.lock.release()
             return 0
         self.pointer.execute("INSERT INTO wiredNews VALUES (?,?,?);", [news[0], news[1], news[2]])
         self.conn.commit()
@@ -152,7 +160,6 @@ class wiredDB():
 
     def dropNews(self):
         if not self.openDB():
-            self.lock.release()
             return 0
         self.pointer.execute("DELETE FROM wiredNews")
         self.conn.commit()
@@ -176,79 +183,83 @@ class wiredDB():
         return 1
 
     def updateIndex(self, filelist):
-        self.openIndex()
-        if not self.openIndex():
-            return 0
-        for aitem in filelist:
-            ## lock here already?
-            self.pointer.execute("INSERT OR REPLACE INTO wiredIndex VALUES (?, ?, ?, ?, ?);",
-                                 [str(aitem['name']), str(aitem['type']), str(aitem['size']), str(aitem['created']),
-                                  str(aitem['modified'])])
-        self.conn.commit()
-        self.closeIndex()
-        return 1
+        if self.openIndex():
+            if not self.openIndex():
+                return 0
+            for aitem in filelist:
+                ## lock here already?
+                self.pointer.execute("INSERT OR REPLACE INTO wiredIndex VALUES (?, ?, ?, ?, ?);",
+                                     [str(aitem['name']), str(aitem['type']), str(aitem['size']), str(aitem['created']),
+                                      str(aitem['modified'])])
+            self.conn.commit()
+            self.closeIndex()
+            return 1
+        return 0
 
     def searchIndex(self, searchstring):
-        self.openIndex()
-        try:
-            self.pointer.execute("SELECT * FROM wiredIndex WHERE name LIKE ?;", ['%' + str(searchstring) + '%'])
-            result = self.pointer.fetchall()
-        except:
-            self.logger.error("Failed to process sqlite query for search term: %s", searchstring)
+        if self.openIndex():
+            try:
+                self.pointer.execute("SELECT * FROM wiredIndex WHERE name LIKE ?;", ['%' + str(searchstring) + '%'])
+                result = self.pointer.fetchall()
+            except:
+                self.logger.error("Failed to process sqlite query for search term: %s", searchstring)
+                self.closeIndex()
+                return 0
             self.closeIndex()
-            return 0
-        self.closeIndex()
-        return result
+            return result
+        return 0
 
     def pruneIndex(self, config, filelist):
-        self.openIndex()
-        self.pointer.execute("SELECT * FROM wiredIndex;")
-        data = self.pointer.fetchall()
-        lookup = {}
-        for afile in filelist:
-            lookup[afile['name']] = afile['type']
-        for aitem in data:
-            if aitem[0] in lookup:
-                if lookup[aitem[0]] == aitem[1]:
-                    continue  # all good
-            # file vanished - remove from index
-            self.pointer.execute("DELETE FROM wiredIndex WHERE name = ?", [aitem[0]])
+        if self.openIndex():
+            self.pointer.execute("SELECT * FROM wiredIndex;")
+            data = self.pointer.fetchall()
+            lookup = {}
+            for afile in filelist:
+                lookup[afile['name']] = afile['type']
+            for aitem in data:
+                if aitem[0] in lookup:
+                    if lookup[aitem[0]] == aitem[1]:
+                        continue  # all good
+                # file vanished - remove from index
+                self.pointer.execute("DELETE FROM wiredIndex WHERE name = ?", [aitem[0]])
+                self.conn.commit()
+            self.pointer.execute("VACUUM")
             self.conn.commit()
-        self.pointer.execute("VACUUM")
-        self.conn.commit()
-        self.closeIndex()
-        return 1
+            self.closeIndex()
+            return 1
+        return 0
 
     def getServerSize(self):
-        self.openIndex()
-        self.pointer.execute("SELECT SUM(size) FROM wiredIndex WHERE TYPE = 'file';")
-        result = self.pointer.fetchone()
-        self.conn.commit()
-        self.closeIndex()
-        try:
-            result = int(result[0])
-        except TypeError:
-            result = 0
-            pass
-        return result
+        if self.openIndex():
+            self.pointer.execute("SELECT SUM(size) FROM wiredIndex WHERE TYPE = 'file';")
+            result = self.pointer.fetchone()
+            self.conn.commit()
+            self.closeIndex()
+            try:
+                result = int(result[0])
+            except TypeError:
+                result = 0
+                pass
+            return result
+        return 0
 
     def getServerFiles(self):
-        self.openIndex()
-        self.pointer.execute("SELECT Count(*) FROM wiredIndex WHERE TYPE = 'file';")
-        result = self.pointer.fetchone()
-        self.conn.commit()
-        self.closeIndex()
-        try:
-            result = int(result[0])
-        except TypeError:
-            result = 0
-            pass
-        return result
+        if self.openIndex():
+            self.pointer.execute("SELECT Count(*) FROM wiredIndex WHERE TYPE = 'file';")
+            result = self.pointer.fetchone()
+            self.conn.commit()
+            self.closeIndex()
+            try:
+                result = int(result[0])
+            except TypeError:
+                result = 0
+                pass
+            return result
+        return 0
 
     ## Banned Users ##
     def openBans(self):
         if not self.openDB():
-            self.lock.release()
             return 0
         sql = 'create table if not exists bans (user TEXT, nick TEXT, ip TEXT, ends REAL);'
         try:
@@ -269,7 +280,6 @@ class wiredDB():
 
     def addBan(self, user, nick, ip, ends):
         if not self.openBans():
-            self.lock.release()
             return 0
         try:
             self.pointer.execute("INSERT INTO bans VALUES (?,?,?,?);", [user, nick, ip, ends])
@@ -283,7 +293,6 @@ class wiredDB():
 
     def checkBan(self, user, ip):
         if not self.openBans():
-            self.lock.release()
             return 0
         try:
             self.pointer.execute("SELECT * FROM bans WHERE user = ? AND ip = ?;", [user, ip])
@@ -308,7 +317,6 @@ class wiredDB():
 
     def removeBan(self, user, nick, ip, ends):
         if not self.openBans():
-            self.lock.release()
             return 0
         try:
             self.pointer.execute("DELETE FROM bans WHERE user = ? AND nick = ? AND ip = ? AND ends = ?;",

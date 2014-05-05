@@ -74,6 +74,8 @@ class wiredIndex(threading.Thread):
     def searchIndex(self, searchString):
         try:
             dbresult = self.searchdb.searchIndex(str(searchString))
+            if not dbresult:
+                return []
         except:
             self.logger.error("Indexer: Error while processing search for term: %s", searchString)
             return 0
