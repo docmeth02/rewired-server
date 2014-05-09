@@ -152,7 +152,7 @@ class commandHandler():
 
     def SAY(self, parameters):
         if not len(parameters[1]) or self.parent.user.id is None:
-            self.ligger.error('SAY: invalid parameters')
+            self.logger.error('SAY: invalid parameters')
             return 0
         clients = self.parent.getUserList()
         chatid = int(parameters[0])
