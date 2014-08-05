@@ -19,15 +19,16 @@ from traceback import format_exception
 class commandServer(threading.Thread):
     def __init__(self, parent, (parentsocket, address)):
         threading.Thread.__init__(self)
-        self.name = "CommandServer-"
         self.parent = parent
+        self.logger = self.parent.logger
+        self.logger.debug('CommandServer init begin')
+        self.name = "CommandServer-"
         self.lock = threading.Lock()
         self.config = self.parent.config
         self.wiredlog = self.parent.wiredlog
         self.connection = parentsocket
         self.socket = wrap_socket(self.connection, server_side=True, certfile=str(self.config['cert']), keyfile=str(
             self.config['cert']), ssl_version=PROTOCOL_TLSv1)
-        self.logger = self.parent.logger
         self.shutdown = 0
         self.protoVersion = "1.1"
         self.user = wireduser.wiredUser(self)
@@ -49,6 +50,7 @@ class commandServer(threading.Thread):
         self.serverSize = self.parent.indexer.size
         self.serverFiles = self.parent.indexer.files
         self.lastPing = time.time()
+        self.logger.debug('commandserver init complete')
 
     def run(self):
             self.logger.info("Incoming connection form %s", self.user.ip)

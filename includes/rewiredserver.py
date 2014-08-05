@@ -89,6 +89,7 @@ class reWiredServer():
                 inputready, outputready, exceptready = select.select([self.commandSock, self.transferSock], [], [], 1)
                 for asocket in inputready:
                     if asocket == self.commandSock:
+                        self.logger.debug("Incoming connection on command port")
                         commandServer(self, self.commandSock.accept()).start()
                     if asocket == self.transferSock:
                         transferServer(self, self.transferSock.accept()).start()
