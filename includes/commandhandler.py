@@ -382,7 +382,7 @@ class commandHandler():
         group = parameters[2]
         privs = wireduser.wiredPrivs(self.parent)
         privs.listToPrivs(parameters[3:])
-        privstring = privs.buildUserList()
+        privstring = privs.privsToString()
         if not self.parent.addUser([username, password, group, 1, privstring]):
             self.parent.sendData(self.buildResponse(514, ['Account Exists']))
             self.logger.info("%s tried to add already existing user %s", self.parent.user.user, username)
