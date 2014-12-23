@@ -77,6 +77,7 @@ class commandServer(threading.Thread):
                     if char:
                         data += char
                     elif char == "":
+                        self.logger.debug("Socket empty response")
                         self.shutdown = 1
                         break
                     else:
@@ -99,8 +100,9 @@ class commandServer(threading.Thread):
     def sendData(self, data):
         with self.lock:
             try:
-                self.socket.send(data)
-            except:
+                self.socket.send(str(data))
+            except Exception as e:
+                self.logger.error("Failed to send %s bytes in sendData: %s" % (len(str(data)), e))
                 return 0
         return 1
 

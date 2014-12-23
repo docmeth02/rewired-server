@@ -84,6 +84,7 @@ class reWiredServer():
             signal.signal(signal.SIGINT, self.serverShutdown)
             signal.signal(signal.SIGTERM, self.serverShutdown)
             signal.signal(signal.SIGFPE, self.restartTracker)
+            signal.signal(signal.SIGHUP, self.rebind)
         while self.keeprunning:
             try:
                 inputready, outputready, exceptready = select.select([self.commandSock, self.transferSock], [], [], 1)
@@ -93,12 +94,8 @@ class reWiredServer():
                         commandServer(self, self.commandSock.accept()).start()
                     if asocket == self.transferSock:
                         transferServer(self, self.transferSock.accept()).start()
-            except select.error as e:
-                self.logger.error("SELECT ERROR: %s", e)
-                continue
-            except SSLError as e:
-                self.logger.error("SSL ERROR: %s", e)
-                continue
+                for exce in exceptready:
+                    self.logger.error('Exceptready: %s', exce)
             except Exception as e:
                 self.logger.error("Socket Error: %s", e)
                 continue
@@ -227,12 +224,12 @@ class reWiredServer():
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.bind((self.config['host'], self.config['port']))
-            sock.listen(4)
+            sock.listen(max(1024, socket.SOMAXCONN))
             return sock
         except:
                 self.logger.error("Can't bind to Port %s. Make sure it's not in use", self.config['port'])
                 self.serverShutdown()
-                system.exit()
+                raise SystemExit
 
     def open_transfer_socket(self):
         try:
@@ -246,12 +243,12 @@ class reWiredServer():
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.bind((self.config['host'], (int(self.config['port']) + 1)))
-            sock.listen(4)
+            sock.listen(max(1024, socket.SOMAXCONN))
             return sock
         except:
             self.logger.error("Can't bind to Port %s. Make sure it's not in use", self.config['port'] + 1)
             self.serverShutdown()
-            system.exit()
+            raise SystemExit
 
     def restartTracker(self, signum, frame):
         self.logger.info("Restarting tracker threads...")
@@ -306,3 +303,11 @@ class reWiredServer():
             self.indexer.start()
             return 0
         return 1
+
+    def rebind(self, *args, **kwargs):
+        self.logger.info("Rebinding sockets...")
+        self.commandSock.close()
+        self.commandSock = self.open_command_socket()
+
+        self.transferSock.close()
+        self.transferSock = self.open_transfer_socket()
