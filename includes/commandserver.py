@@ -13,7 +13,7 @@ try:
 except:
     print "Failed to load dns lib. Please install python-dnspython."
     raise SystemExit
-from traceback import format_exception
+from traceback import format_exception, format_stack
 
 
 class commandServer(threading.Thread):
@@ -100,9 +100,11 @@ class commandServer(threading.Thread):
     def sendData(self, data):
         with self.lock:
             try:
-                self.socket.send(str(data))
+                if type(data) != str:
+                    raise ValueError
+                self.socket.send(data)
             except Exception as e:
-                self.logger.error("Failed to send %s bytes in sendData: %s" % (len(str(data)), e))
+                self.logger.error("Failed to send %s bytes in sendData: %s" % (len(str(data)), '\n'.join(format_stack()[:-1])))
                 return 0
         return 1
 
