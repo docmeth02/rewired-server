@@ -28,7 +28,7 @@ class commandServer(threading.Thread):
         self.wiredlog = self.parent.wiredlog
         self.connection = parentsocket
         self.socket = wrap_socket(self.connection, server_side=True, certfile=str(self.config['cert']), keyfile=str(
-            self.config['cert']), ssl_version=PROTOCOL_TLSv1)
+            self.config['cert']), ssl_version=PROTOCOL_TLSv1, ciphers="AES256-SHA AES128-SHA")
         self.shutdown = 0
         self.protoVersion = "1.1"
         self.user = wireduser.wiredUser(self)
@@ -64,7 +64,7 @@ class commandServer(threading.Thread):
                     try:
                         char = self.socket.recv(1)
                     except SSLError as e:
-                        if str(e) == 'The read operation timed out':
+                        if 'The read operation timed out' in str(e):
                             pass
                         else:
                             self.logger.debug("Caught SSLError: %s" % e)
