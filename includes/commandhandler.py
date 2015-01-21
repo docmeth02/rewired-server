@@ -94,7 +94,9 @@ class commandHandler():
             self.parent.user.mapPrivs(user[4])
         self.logger.info("Login for user %s successful.", self.parent.user.user)
         self.parent.sendData(self.buildResponse(201, [self.parent.user.id]))  # send login successful
-        self.parent.sendData(self.getTopic(1))  # send topic for public chat (if any)
+        topic = self.getTopic(1)
+        if topic:
+            self.parent.sendData(topic)  # send topic for public chat (if any)
         self.parent.loginDone()  # add this client to the logged in user list
         self.parent.user.loginDone = 1  # login is now complete
         self.wiredlog.log_event('LOGIN', {'RESULT': 'OK', 'USER': self.parent.user.user,
