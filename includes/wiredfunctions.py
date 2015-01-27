@@ -7,7 +7,7 @@ import logging
 import platform
 from subprocess import call
 from functools import wraps
-from time import time, strftime, localtime, timezone, altzone, daylight
+from time import time, strftime, localtime, timezone, altzone, daylight, gmtime, mktime
 try:
     # This will fail on python > 2.7
     from ssl import OPENSSL_VERSION
@@ -17,10 +17,8 @@ except:
 
 def wiredTime(timestamp):
     parsed = localtime(float(timestamp))
-    if daylight:  # use offset including DST
-        offset = utcOffset(altzone)
-    else:
-        offset = utcOffset(timezone)
+    tzoffset = mktime(localtime()) - mktime(gmtime())
+    offset = utcOffset(tzoffset)
     try:
         parsed = strftime("%Y-%m-%dT%H:%M:%S", parsed) + offset
     except:
@@ -31,9 +29,7 @@ def wiredTime(timestamp):
 def utcOffset(offset):
     hours = abs(offset) // 3600
     minutes = abs(offset) % 3600 // 60
-    #sign = (offset < 0 and '-') or '+'
-    sign = (offset < 0 and '+') or '-'
-    return '%c%02d:%02d' % (sign, hours, minutes)
+    return '%c%02d:%02d' % (['-' if offset < 0 else '+'][-1], hours, minutes)
 
 
 def getPlatform():
